@@ -52,18 +52,31 @@ class GdalCliBackend(GeoBackend):
             )
         return result
 
+    @staticmethod
+    def _sanitize_identifier(name: str) -> str:
+        """Sanitize a field/column name for use in SQL to prevent injection."""
+        import re
+
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+            raise ValueError(
+                f"Invalid identifier '{name}': only letters, digits, and underscores are allowed."
+            )
+        return name
+
     # -- public API -----------------------------------------------------------
 
     def buffer(self, gdf: Any, distance: float, **kwargs) -> Any:
         src = self._write_tmp(gdf)
         fd, dst = tempfile.mkstemp(suffix=".geojson")
         os.close(fd)
+        # Validate distance is a real number
+        safe_distance = float(distance)
         try:
             self._run([
                 "ogr2ogr", "-f", "GeoJSON", dst, src,
                 "-dialect", "sqlite",
                 "-sql",
-                f"SELECT ST_Buffer(geometry, {distance}) AS geometry, * FROM \"{os.path.splitext(os.path.basename(src))[0]}\"",
+                f"SELECT ST_Buffer(geometry, {safe_distance}) AS geometry, * FROM \"{os.path.splitext(os.path.basename(src))[0]}\"",
             ])
             return self._read_result(dst)
         finally:
@@ -112,9 +125,10 @@ class GdalCliBackend(GeoBackend):
         layer_name = os.path.splitext(os.path.basename(src))[0]
         try:
             if by:
+                safe_by = self._sanitize_identifier(by)
                 sql = (
-                    f"SELECT ST_Union(geometry) AS geometry, \"{by}\" "
-                    f"FROM \"{layer_name}\" GROUP BY \"{by}\""
+                    f"SELECT ST_Union(geometry) AS geometry, \"{safe_by}\" "
+                    f"FROM \"{layer_name}\" GROUP BY \"{safe_by}\""
                 )
             else:
                 sql = f"SELECT ST_Union(geometry) AS geometry FROM \"{layer_name}\""

@@ -68,6 +68,8 @@ def network_service_area(ctx: StepContext) -> StepResult:
         if geom is None or geom.is_empty:
             continue
         coords = list(geom.coords)
+        if len(coords) < 2:
+            continue
         for i in range(len(coords) - 1):
             u = coords[i]
             v = coords[i + 1]

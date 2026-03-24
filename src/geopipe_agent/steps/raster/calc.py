@@ -61,6 +61,16 @@ def raster_calc(ctx: StepContext) -> StepResult:
             f"Available bands: {sorted(available)}"
         )
 
+    # Reject expressions containing dangerous patterns
+    _forbidden = re.compile(
+        r"(__|\bimport\b|\beval\b|\bexec\b|\bgetattr\b|\bsetattr\b|\bglobals\b|\blocals\b|\bcompile\b|\bopen\b)",
+    )
+    if _forbidden.search(expression):
+        raise ValueError(
+            "Expression contains forbidden tokens. "
+            "Only numeric/band operations are allowed."
+        )
+
     # Safe evaluation with numpy functions
     safe_ns = {"__builtins__": {}, "np": np}
     safe_ns.update(band_vars)

@@ -47,6 +47,7 @@ from geopipe_agent.models.result import StepResult
 def network_geocode(ctx: StepContext) -> StepResult:
     import geopandas as gpd
     from geopy.geocoders import Nominatim
+    from geopy.exc import GeocoderServiceError, GeocoderTimedOut, GeocoderUnavailable
     from shapely.geometry import Point
 
     addresses = ctx.param("addresses")
@@ -85,7 +86,7 @@ def network_geocode(ctx: StepContext) -> StepResult:
                     "longitude": None,
                 })
                 points.append(None)
-        except Exception as e:
+        except (GeocoderServiceError, GeocoderTimedOut, GeocoderUnavailable, ValueError) as e:
             failed.append(addr)
             results.append({
                 "address": addr,

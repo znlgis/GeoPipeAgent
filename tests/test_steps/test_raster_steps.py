@@ -145,7 +145,7 @@ class TestRasterCalc:
         result = raster_calc(ctx)
         assert isinstance(result, StepResult)
         # (150 - 50) / (150 + 50) = 0.5
-        assert abs(result.output["data"][0, 0, 0] - 0.5) < 1e-10
+        assert result.output["data"][0, 0, 0] == pytest.approx(0.5, abs=1e-6)
 
     def test_unknown_band_raises(self, sample_multiband_raster):
         from geopipe_agent.steps.raster.calc import raster_calc
