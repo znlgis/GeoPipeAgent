@@ -42,43 +42,27 @@ def execute_pipeline(pipeline: PipelineDefinition) -> dict:
             "status": "running",
         }
 
-        try:
-            # Resolve parameters
-            resolved_params = resolve_step_params(pipeline, i, context)
-
-            # Select backend
-            step_info = registry.get(step_def.use)
-            if step_info is None:
-                raise StepExecutionError(
+        # --- when: conditional execution ---
+        if step_def.when:
+            if not _evaluate_condition(step_def.when, context):
+                step_report["status"] = "skipped"
+                step_report["duration"] = round(time.time() - step_start, 3)
+                step_report["skip_reason"] = f"condition not met: {step_def.when}"
+                step_reports.append(step_report)
+                # Store empty result so subsequent references don't fail
+                context.set_output(step_def.id, StepResult())
+                logger.info(
+                    "Step '%s' skipped (when=%s)",
                     step_def.id,
-                    f"Step type '{step_def.use}' is not registered.",
-                    suggestion="Check that the step module is imported and the step id is correct.",
+                    step_def.when,
                 )
+                continue
 
-            # Determine backend: IO steps don't use backends
-            backend = None
-            if step_info.category not in ("io",):
-                preferred = step_def.backend
-                backend = backend_manager.get(preferred)
-
-            # Build step context
-            step_ctx = StepContext(
-                params=resolved_params,
-                backend=backend,
-                pipeline_context=context,
+        try:
+            _execute_step_with_retry(
+                step_def, i, pipeline, context, registry, backend_manager,
+                step_report, step_start,
             )
-
-            # Execute step function
-            result = step_info.func(step_ctx)
-            if not isinstance(result, StepResult):
-                result = StepResult(output=result)
-
-            # Store output in context
-            context.set_output(step_def.id, result)
-
-            step_report["status"] = "success"
-            step_report["duration"] = round(time.time() - step_start, 3)
-            step_report["output_summary"] = result.summary()
 
             logger.info(
                 "Step '%s' (%s) completed in %.3fs",
@@ -143,6 +127,128 @@ def _suggest_fix(step_use: str, error: Exception) -> str | None:
     if "permission" in msg:
         return "Check file permissions for the input/output paths."
     return None
+
+
+_MAX_RETRIES = 3
+
+
+def _execute_step_with_retry(
+    step_def,
+    step_index: int,
+    pipeline: PipelineDefinition,
+    context: PipelineContext,
+    registry: StepRegistry,
+    backend_manager: BackendManager,
+    step_report: dict,
+    step_start: float,
+) -> None:
+    """Execute a single step, optionally retrying on failure.
+
+    When ``step_def.on_error == "retry"``, the step is retried up to
+    ``_MAX_RETRIES`` times before giving up.
+    """
+    max_attempts = _MAX_RETRIES if step_def.on_error == "retry" else 1
+    last_error: Exception | None = None
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            # Resolve parameters
+            resolved_params = resolve_step_params(pipeline, step_index, context)
+
+            # Select backend
+            step_info = registry.get(step_def.use)
+            if step_info is None:
+                raise StepExecutionError(
+                    step_def.id,
+                    f"Step type '{step_def.use}' is not registered.",
+                    suggestion="Check that the step module is imported and the step id is correct.",
+                )
+
+            # Determine backend: IO steps don't use backends
+            backend = None
+            if step_info.category not in ("io",):
+                preferred = step_def.backend
+                backend = backend_manager.get(preferred)
+
+            # Build step context
+            step_ctx = StepContext(
+                params=resolved_params,
+                backend=backend,
+                pipeline_context=context,
+            )
+
+            # Execute step function
+            result = step_info.func(step_ctx)
+            if not isinstance(result, StepResult):
+                result = StepResult(output=result)
+
+            # Store output in context
+            context.set_output(step_def.id, result)
+
+            step_report["status"] = "success"
+            step_report["duration"] = round(time.time() - step_start, 3)
+            step_report["output_summary"] = result.summary()
+            if attempt > 1:
+                step_report["retries"] = attempt - 1
+            return  # success
+
+        except StepExecutionError:
+            raise
+        except Exception as e:
+            last_error = e
+            if attempt < max_attempts:
+                logger.warning(
+                    "Step '%s' failed (attempt %d/%d): %s — retrying…",
+                    step_def.id, attempt, max_attempts, e,
+                )
+                time.sleep(0.5 * attempt)  # simple back-off
+            else:
+                break
+
+    # All retries exhausted — re-raise
+    assert last_error is not None
+    raise last_error
+
+
+def _evaluate_condition(condition: str, context: PipelineContext) -> bool:
+    """Evaluate a ``when`` condition expression.
+
+    Supports:
+      - ``$step_id.attr == value`` / ``!= / > / < / >= / <=``
+      - Variable substitution ``${var}``
+      - Bare step output references ``$step_id.output`` (truthy check)
+    """
+    import re
+
+    resolved = condition
+
+    # Replace ${var} placeholders
+    def _replace_var(m: re.Match) -> str:
+        var_name = m.group(1)
+        try:
+            val = context.variables.get(var_name, "")
+            return repr(val)
+        except Exception:
+            return repr("")
+
+    resolved = re.sub(r"\$\{(\w+)\}", _replace_var, resolved)
+
+    # Replace $step_id.attr references
+    def _replace_ref(m: re.Match) -> str:
+        ref = m.group(0)
+        try:
+            val = context.resolve(ref)
+            return repr(val)
+        except Exception:
+            return repr(None)
+
+    resolved = re.sub(r"\$(\w+)\.(\w+)", _replace_ref, resolved)
+
+    try:
+        return bool(eval(resolved, {"__builtins__": {}}, {}))  # noqa: S307
+    except Exception:
+        logger.warning("Failed to evaluate when condition '%s' (resolved: '%s'), treating as False", condition, resolved)
+        return False
 
 
 def _summarize_output(value: Any) -> Any:
