@@ -1,0 +1,51 @@
+"""Step result models."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass
+class StepResult:
+    """Result of executing a single pipeline step.
+
+    Steps return a StepResult containing output data and optional metadata.
+    Attributes are accessible via dot notation for step references ($step_id.output).
+    """
+
+    output: Any = None
+    stats: dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
+
+    def __getattr__(self, name: str) -> Any:
+        # Allow accessing stats/metadata keys as attributes for $step.key references
+        if name.startswith("_"):
+            raise AttributeError(name)
+        if name in self.stats:
+            return self.stats[name]
+        if name in self.metadata:
+            return self.metadata[name]
+        raise AttributeError(
+            f"StepResult has no attribute '{name}'. "
+            f"Available: output, stats={list(self.stats.keys())}, "
+            f"metadata={list(self.metadata.keys())}"
+        )
+
+    def summary(self) -> dict:
+        """Generate a summary dict suitable for JSON reporting."""
+        summary = {}
+        if self.output is not None:
+            try:
+                # GeoDataFrame summary
+                summary["feature_count"] = len(self.output)
+                if hasattr(self.output, "crs") and self.output.crs:
+                    summary["crs"] = str(self.output.crs)
+                if hasattr(self.output, "geometry"):
+                    summary["geometry_types"] = list(
+                        self.output.geometry.geom_type.unique()
+                    )
+            except (TypeError, AttributeError):
+                summary["type"] = type(self.output).__name__
+        summary.update(self.stats)
+        return summary

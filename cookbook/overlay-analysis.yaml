@@ -1,0 +1,35 @@
+# 叠加分析示例
+# 对两个矢量图层进行叠加分析
+
+pipeline:
+  name: "叠加分析"
+  description: "对两个矢量图层进行交集叠加分析"
+
+  steps:
+    - id: load-layer1
+      use: io.read_vector
+      params:
+        path: "data/landuse.shp"
+
+    - id: load-layer2
+      use: io.read_vector
+      params:
+        path: "data/flood_zone.shp"
+
+    - id: overlay-analysis
+      use: vector.overlay
+      params:
+        input: "$load-layer1.output"
+        overlay_layer: "$load-layer2.output"
+        how: "intersection"
+
+    - id: save-result
+      use: io.write_vector
+      params:
+        input: "$overlay-analysis.output"
+        path: "output/landuse_in_flood_zone.geojson"
+        format: "GeoJSON"
+
+  outputs:
+    result: "$save-result.output"
+    stats: "$overlay-analysis.stats"

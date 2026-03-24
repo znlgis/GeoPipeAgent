@@ -1,0 +1,41 @@
+# 缓冲区分析示例
+# 对矢量数据进行缓冲区分析
+
+pipeline:
+  name: "缓冲区分析"
+  description: "对道路数据进行缓冲区分析并输出结果"
+
+  variables:
+    input_path: "data/roads.shp"
+    buffer_dist: 500
+    output_format: "GeoJSON"
+
+  steps:
+    - id: load-roads
+      use: io.read_vector
+      params:
+        path: "${input_path}"
+
+    - id: reproject
+      use: vector.reproject
+      params:
+        input: "$load-roads.output"
+        target_crs: "EPSG:3857"
+
+    - id: buffer-analysis
+      use: vector.buffer
+      params:
+        input: "$reproject.output"
+        distance: "${buffer_dist}"
+        cap_style: "round"
+
+    - id: save-result
+      use: io.write_vector
+      params:
+        input: "$buffer-analysis.output"
+        path: "output/road_buffer.geojson"
+        format: "${output_format}"
+
+  outputs:
+    result: "$save-result.output"
+    stats: "$buffer-analysis.stats"
