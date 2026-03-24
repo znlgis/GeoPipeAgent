@@ -1,0 +1,32 @@
+# 批量转换示例
+# 读取 Shapefile 并转换为 GeoJSON
+
+pipeline:
+  name: "批量转换"
+  description: "将 Shapefile 转换为 GeoJSON 格式并投影到 WGS84"
+
+  variables:
+    input_path: "data/buildings.shp"
+    output_path: "output/buildings_wgs84.geojson"
+
+  steps:
+    - id: read-data
+      use: io.read_vector
+      params:
+        path: "${input_path}"
+
+    - id: reproject
+      use: vector.reproject
+      params:
+        input: "$read-data.output"
+        target_crs: "EPSG:4326"
+
+    - id: write-output
+      use: io.write_vector
+      params:
+        input: "$reproject.output"
+        path: "${output_path}"
+        format: "GeoJSON"
+
+  outputs:
+    result: "$write-output.output"

@@ -1,0 +1,29 @@
+# 融合分析示例
+# 将要素按属性融合
+
+pipeline:
+  name: "融合分析"
+  description: "按类型字段融合面要素"
+
+  steps:
+    - id: read-data
+      use: io.read_vector
+      params:
+        path: "data/landuse.shp"
+
+    - id: dissolve
+      use: vector.dissolve
+      params:
+        input: "$read-data.output"
+        by: "landuse_type"
+        aggfunc: "first"
+
+    - id: save
+      use: io.write_vector
+      params:
+        input: "$dissolve.output"
+        path: "output/landuse_dissolved.geojson"
+
+  outputs:
+    result: "$save.output"
+    stats: "$dissolve.stats"

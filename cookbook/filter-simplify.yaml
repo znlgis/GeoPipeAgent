@@ -1,0 +1,39 @@
+# 数据筛选与简化示例
+# 按条件筛选数据后简化几何
+
+pipeline:
+  name: "数据筛选与简化"
+  description: "筛选特定属性的要素，然后简化几何以减少文件大小"
+
+  variables:
+    input_path: "data/parcels.shp"
+    filter_expression: "area_sqm > 1000"
+    simplify_tolerance: 1.0
+
+  steps:
+    - id: read-data
+      use: io.read_vector
+      params:
+        path: "${input_path}"
+
+    - id: filter
+      use: vector.query
+      params:
+        input: "$read-data.output"
+        expression: "${filter_expression}"
+
+    - id: simplify
+      use: vector.simplify
+      params:
+        input: "$filter.output"
+        tolerance: "${simplify_tolerance}"
+
+    - id: save
+      use: io.write_vector
+      params:
+        input: "$simplify.output"
+        path: "output/filtered_simplified.geojson"
+
+  outputs:
+    result: "$save.output"
+    filter_stats: "$filter.stats"
