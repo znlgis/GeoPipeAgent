@@ -24,6 +24,15 @@ dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
 ]
+analysis = [
+    "scipy>=1.10",
+    "scikit-learn>=1.2",
+    "matplotlib>=3.7",
+]
+network = [
+    "networkx>=3.0",
+    "geopy>=2.3",
+]
 qgis = []
 
 [project.scripts]

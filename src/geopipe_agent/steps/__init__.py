@@ -18,6 +18,18 @@ def load_builtin_steps() -> None:
     import geopipe_agent.steps.vector.simplify  # noqa: F401
     import geopipe_agent.steps.vector.query  # noqa: F401
     import geopipe_agent.steps.vector.overlay  # noqa: F401
+    import geopipe_agent.steps.raster.reproject  # noqa: F401
+    import geopipe_agent.steps.raster.clip  # noqa: F401
+    import geopipe_agent.steps.raster.calc  # noqa: F401
+    import geopipe_agent.steps.raster.stats  # noqa: F401
+    import geopipe_agent.steps.raster.contour  # noqa: F401
+    import geopipe_agent.steps.analysis.voronoi  # noqa: F401
+    import geopipe_agent.steps.analysis.heatmap  # noqa: F401
+    import geopipe_agent.steps.analysis.interpolate  # noqa: F401
+    import geopipe_agent.steps.analysis.cluster  # noqa: F401
+    import geopipe_agent.steps.network.shortest_path  # noqa: F401
+    import geopipe_agent.steps.network.service_area  # noqa: F401
+    import geopipe_agent.steps.network.geocode  # noqa: F401
 
 
 __all__ = ["StepRegistry", "step", "load_builtin_steps"]

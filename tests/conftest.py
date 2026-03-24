@@ -23,6 +23,18 @@ def _reload_builtin_steps():
     import geopipe_agent.steps.vector.simplify
     import geopipe_agent.steps.vector.query
     import geopipe_agent.steps.vector.overlay
+    import geopipe_agent.steps.raster.reproject
+    import geopipe_agent.steps.raster.clip
+    import geopipe_agent.steps.raster.calc
+    import geopipe_agent.steps.raster.stats
+    import geopipe_agent.steps.raster.contour
+    import geopipe_agent.steps.analysis.voronoi
+    import geopipe_agent.steps.analysis.heatmap
+    import geopipe_agent.steps.analysis.interpolate
+    import geopipe_agent.steps.analysis.cluster
+    import geopipe_agent.steps.network.shortest_path
+    import geopipe_agent.steps.network.service_area
+    import geopipe_agent.steps.network.geocode
 
     importlib.reload(geopipe_agent.steps.io.read_vector)
     importlib.reload(geopipe_agent.steps.io.write_vector)
@@ -35,6 +47,18 @@ def _reload_builtin_steps():
     importlib.reload(geopipe_agent.steps.vector.simplify)
     importlib.reload(geopipe_agent.steps.vector.query)
     importlib.reload(geopipe_agent.steps.vector.overlay)
+    importlib.reload(geopipe_agent.steps.raster.reproject)
+    importlib.reload(geopipe_agent.steps.raster.clip)
+    importlib.reload(geopipe_agent.steps.raster.calc)
+    importlib.reload(geopipe_agent.steps.raster.stats)
+    importlib.reload(geopipe_agent.steps.raster.contour)
+    importlib.reload(geopipe_agent.steps.analysis.voronoi)
+    importlib.reload(geopipe_agent.steps.analysis.heatmap)
+    importlib.reload(geopipe_agent.steps.analysis.interpolate)
+    importlib.reload(geopipe_agent.steps.analysis.cluster)
+    importlib.reload(geopipe_agent.steps.network.shortest_path)
+    importlib.reload(geopipe_agent.steps.network.service_area)
+    importlib.reload(geopipe_agent.steps.network.geocode)
 
 
 @pytest.fixture(autouse=True)
