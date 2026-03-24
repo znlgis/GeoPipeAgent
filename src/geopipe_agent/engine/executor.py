@@ -1,0 +1,164 @@
+"""Pipeline executor — runs validated pipelines step by step."""
+
+from __future__ import annotations
+
+import logging
+import time
+from typing import Any
+
+from geopipe_agent.backends import BackendManager
+from geopipe_agent.engine.context import PipelineContext, StepContext
+from geopipe_agent.engine.resolver import resolve_step_params
+from geopipe_agent.engine.reporter import build_report
+from geopipe_agent.errors import StepExecutionError
+from geopipe_agent.models.pipeline import PipelineDefinition
+from geopipe_agent.models.result import StepResult
+from geopipe_agent.steps.registry import StepRegistry
+
+logger = logging.getLogger("geopipe_agent")
+
+
+def execute_pipeline(pipeline: PipelineDefinition) -> dict:
+    """Execute a validated pipeline and return a JSON-serializable report.
+
+    Execution flow:
+      1. Create PipelineContext with variables
+      2. For each step: resolve params → select backend → call step func → store output
+      3. Build and return execution report
+    """
+    context = PipelineContext(variables=pipeline.variables)
+    registry = StepRegistry()
+    backend_manager = BackendManager()
+
+    step_reports: list[dict] = []
+    pipeline_start = time.time()
+    overall_status = "success"
+
+    for i, step_def in enumerate(pipeline.steps):
+        step_start = time.time()
+        step_report: dict[str, Any] = {
+            "id": step_def.id,
+            "step": step_def.use,
+            "status": "running",
+        }
+
+        try:
+            # Resolve parameters
+            resolved_params = resolve_step_params(pipeline, i, context)
+
+            # Select backend
+            step_info = registry.get(step_def.use)
+            if step_info is None:
+                raise StepExecutionError(
+                    step_def.id,
+                    f"Step type '{step_def.use}' is not registered.",
+                    suggestion="Check that the step module is imported and the step id is correct.",
+                )
+
+            # Determine backend: IO steps don't use backends
+            backend = None
+            if step_info.category not in ("io",):
+                preferred = step_def.backend
+                backend = backend_manager.get(preferred)
+
+            # Build step context
+            step_ctx = StepContext(
+                params=resolved_params,
+                backend=backend,
+                pipeline_context=context,
+            )
+
+            # Execute step function
+            result = step_info.func(step_ctx)
+            if not isinstance(result, StepResult):
+                result = StepResult(output=result)
+
+            # Store output in context
+            context.set_output(step_def.id, result)
+
+            step_report["status"] = "success"
+            step_report["duration"] = round(time.time() - step_start, 3)
+            step_report["output_summary"] = result.summary()
+
+            logger.info(
+                "Step '%s' (%s) completed in %.3fs",
+                step_def.id,
+                step_def.use,
+                step_report["duration"],
+            )
+
+        except StepExecutionError:
+            raise
+        except Exception as e:
+            duration = round(time.time() - step_start, 3)
+            step_report["status"] = "error"
+            step_report["duration"] = duration
+            step_report["error"] = str(e)
+
+            if step_def.on_error == "skip":
+                logger.warning(
+                    "Step '%s' failed (skipped): %s", step_def.id, e
+                )
+                step_report["status"] = "skipped"
+                # Store empty result so subsequent steps can reference it
+                context.set_output(step_def.id, StepResult())
+            else:
+                overall_status = "error"
+                step_reports.append(step_report)
+                raise StepExecutionError(
+                    step_def.id,
+                    str(e),
+                    cause=e,
+                    suggestion=_suggest_fix(step_def.use, e),
+                ) from e
+
+        step_reports.append(step_report)
+
+    total_duration = round(time.time() - pipeline_start, 3)
+
+    # Resolve pipeline outputs
+    resolved_outputs = {}
+    for key, ref in pipeline.outputs.items():
+        try:
+            resolved_outputs[key] = _summarize_output(context.resolve(ref))
+        except Exception as e:
+            resolved_outputs[key] = f"<resolution error: {e}>"
+
+    return build_report(
+        pipeline_name=pipeline.name,
+        status=overall_status,
+        duration=total_duration,
+        step_reports=step_reports,
+        outputs=resolved_outputs,
+    )
+
+
+def _suggest_fix(step_use: str, error: Exception) -> str | None:
+    """Generate an AI-friendly fix suggestion based on the error."""
+    msg = str(error).lower()
+    if "crs" in msg and ("mismatch" in msg or "degree" in msg):
+        return "Add a vector.reproject step before this step to convert to a projected CRS."
+    if "file not found" in msg or "no such file" in msg:
+        return "Check that the input file path is correct and the file exists."
+    if "permission" in msg:
+        return "Check file permissions for the input/output paths."
+    return None
+
+
+def _summarize_output(value: Any) -> Any:
+    """Create a JSON-serializable summary of an output value."""
+    if value is None:
+        return None
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, dict):
+        return value
+    try:
+        # GeoDataFrame-like
+        return {
+            "type": "GeoDataFrame",
+            "feature_count": len(value),
+            "crs": str(value.crs) if hasattr(value, "crs") and value.crs else None,
+        }
+    except Exception:
+        return str(type(value).__name__)

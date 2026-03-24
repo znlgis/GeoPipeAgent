@@ -1,0 +1,217 @@
+"""Skill document and reference generator.
+
+Generates Markdown documentation from registered steps for AI consumption.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from geopipe_agent.steps import load_builtin_steps
+from geopipe_agent.steps.registry import StepRegistry
+
+
+def generate_steps_reference() -> str:
+    """Generate a Markdown reference of all registered steps.
+
+    Returns:
+        Markdown string documenting all steps.
+    """
+    load_builtin_steps()
+    registry = StepRegistry()
+
+    lines = [
+        "# GeoPipeAgent Steps Reference",
+        "",
+        "Auto-generated reference of all available pipeline steps.",
+        "",
+    ]
+
+    for category in registry.categories():
+        lines.append(f"## {category}")
+        lines.append("")
+
+        for info in registry.list_by_category(category):
+            lines.append(f"### `{info.id}`")
+            lines.append("")
+            lines.append(f"**{info.name}** — {info.description}")
+            lines.append("")
+
+            if info.params:
+                lines.append("**Parameters:**")
+                lines.append("")
+                lines.append("| Name | Type | Required | Default | Description |")
+                lines.append("|------|------|----------|---------|-------------|")
+                for pname, pinfo in info.params.items():
+                    req = "✅" if pinfo.get("required", False) else "❌"
+                    default = pinfo.get("default", "—")
+                    desc = pinfo.get("description", "")
+                    ptype = pinfo.get("type", "")
+                    if "enum" in pinfo:
+                        desc += f" (options: {', '.join(pinfo['enum'])})"
+                    lines.append(f"| `{pname}` | {ptype} | {req} | {default} | {desc} |")
+                lines.append("")
+
+            if info.outputs:
+                lines.append("**Outputs:**")
+                lines.append("")
+                for oname, oinfo in info.outputs.items():
+                    lines.append(f"- `{oname}` ({oinfo.get('type', '')}): {oinfo.get('description', '')}")
+                lines.append("")
+
+            if info.examples:
+                lines.append("**Examples:**")
+                lines.append("")
+                for ex in info.examples:
+                    lines.append(f"- {ex.get('description', '')}: `{ex.get('params', {})}`")
+                lines.append("")
+
+            if info.backends:
+                lines.append(f"**Backends:** {', '.join(info.backends)}")
+                lines.append("")
+
+            lines.append("---")
+            lines.append("")
+
+    return "\n".join(lines)
+
+
+def generate_pipeline_schema_doc() -> str:
+    """Generate Markdown documentation for the YAML pipeline schema."""
+    return """# GeoPipeAgent Pipeline YAML Schema
+
+## Top-level Structure
+
+```yaml
+pipeline:
+  name: "Pipeline Name"            # Required: pipeline name
+  description: "Description"       # Optional: pipeline description
+  crs: "EPSG:4326"                # Optional: default CRS
+  variables:                       # Optional: reusable variables
+    var_name: value
+  steps:                           # Required: list of steps
+    - id: step_id                  # Required: unique step identifier [a-z0-9_-]
+      use: category.action         # Required: step registry ID
+      params:                      # Step-specific parameters
+        key: value
+      on_error: fail               # Optional: fail/skip/retry (default: fail)
+      backend: gdal_python         # Optional: specific backend to use
+  outputs:                         # Optional: pipeline output declarations
+    result: "$step_id.output"
+```
+
+## Reference Syntax
+
+| Syntax | Description | Example |
+|--------|-------------|---------|
+| `$step_id.output` | Reference step output | `$buffer.output` |
+| `$step_id.stats` | Reference step stats | `$buffer.stats` |
+| `${var_name}` | Variable substitution | `${input_path}` |
+
+## Step ID Rules
+
+- Only lowercase letters, digits, underscores, and hyphens: `[a-z0-9_-]`
+- No dots (`.`) — dots are reserved for attribute access in references
+- Must be unique within a pipeline
+
+## Error Handling
+
+Each step can specify `on_error`:
+- `fail` (default): Stop pipeline execution
+- `skip`: Skip this step, continue with next
+- `retry`: Retry the step (v1 placeholder)
+"""
+
+
+def generate_skill_file() -> str:
+    """Generate the main SKILL.md file for AI consumption."""
+    return """# GeoPipeAgent Skill
+
+## What is GeoPipeAgent?
+
+GeoPipeAgent is an AI-native GIS analysis pipeline framework. You (AI) can generate YAML pipeline files to perform GIS analysis tasks, and the framework will execute them and return structured JSON reports.
+
+## How to Use
+
+1. **Understand the task**: What GIS analysis does the user need?
+2. **Choose steps**: Refer to `reference/steps-reference.md` for available steps
+3. **Write YAML pipeline**: Generate a pipeline YAML following `reference/pipeline-schema.md`
+4. **Execute**: Run `geopipe-agent run <pipeline.yaml>`
+5. **Interpret results**: Parse the JSON execution report
+
+## Quick Example
+
+```yaml
+pipeline:
+  name: "Buffer Analysis"
+  steps:
+    - id: read
+      use: io.read_vector
+      params:
+        path: "data/roads.shp"
+    - id: buffer
+      use: vector.buffer
+      params:
+        input: "$read.output"
+        distance: 500
+    - id: save
+      use: io.write_vector
+      params:
+        input: "$buffer.output"
+        path: "output/buffer_result.geojson"
+  outputs:
+    result: "$save.output"
+```
+
+## Key Concepts
+
+- **Steps** are identified by `category.action` (e.g., `io.read_vector`, `vector.buffer`)
+- **Step references** use `$step_id.attribute` syntax (e.g., `$read.output`)
+- **Variables** use `${var_name}` syntax
+- **IO steps** (io.*) read/write files directly; **analysis steps** use GIS backends
+
+## Available Step Categories
+
+- `io.*` — Data I/O (read/write vector and raster)
+- `vector.*` — Vector analysis (buffer, clip, reproject, dissolve, simplify, query, overlay)
+- `raster.*` — Raster analysis (planned)
+- `analysis.*` — Advanced analysis (planned)
+- `network.*` — Network analysis (planned)
+
+## Files
+
+- `reference/steps-reference.md` — Complete step parameter reference
+- `reference/pipeline-schema.md` — YAML pipeline schema documentation
+- `cookbook/` — Example pipeline YAML files
+"""
+
+
+def write_skill_files(output_dir: str | Path) -> list[str]:
+    """Generate and write all skill files to the output directory.
+
+    Returns:
+        List of generated file paths.
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    files = []
+
+    # Main skill file
+    skill_path = output_dir / "SKILL.md"
+    skill_path.write_text(generate_skill_file(), encoding="utf-8")
+    files.append(str(skill_path))
+
+    # Reference directory
+    ref_dir = output_dir / "reference"
+    ref_dir.mkdir(parents=True, exist_ok=True)
+
+    steps_ref_path = ref_dir / "steps-reference.md"
+    steps_ref_path.write_text(generate_steps_reference(), encoding="utf-8")
+    files.append(str(steps_ref_path))
+
+    schema_path = ref_dir / "pipeline-schema.md"
+    schema_path.write_text(generate_pipeline_schema_doc(), encoding="utf-8")
+    files.append(str(schema_path))
+
+    return files
