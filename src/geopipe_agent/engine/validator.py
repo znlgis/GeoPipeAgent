@@ -79,34 +79,56 @@ def _validate_param_refs(
     available_outputs: set[str],
     variables: dict,
 ) -> None:
-    """Check that all $step.attr and ${var} references are valid."""
+    """Check that all $step.attr and ${var} references are valid.
+
+    Recursively inspects nested dicts and lists.
+    """
     for key, value in params.items():
-        if not isinstance(value, str):
-            continue
+        _validate_value_refs(step_id, key, value, available_outputs, variables)
 
-        # Step reference
-        if value.startswith("$") and not value.startswith("${"):
-            ref_body = value[1:]
-            if "." not in ref_body:
-                raise PipelineValidationError(
-                    f"Step '{step_id}', param '{key}': invalid reference '{value}'. "
-                    f"Expected format: $other_step_id.attribute"
-                )
-            ref_step_id = ref_body.split(".")[0]
-            if ref_step_id not in available_outputs:
-                raise PipelineValidationError(
-                    f"Step '{step_id}', param '{key}': references step '{ref_step_id}' "
-                    f"which has not been defined before this step. "
-                    f"Available: {sorted(available_outputs)}"
-                )
 
-        # Variable reference
-        if "${" in value:
-            for match in re.finditer(r"\$\{(\w+)\}", value):
-                var_name = match.group(1)
-                if var_name not in variables:
-                    raise PipelineValidationError(
-                        f"Step '{step_id}', param '{key}': variable '${{{var_name}}}' "
-                        f"is not defined in pipeline.variables. "
-                        f"Available: {sorted(variables.keys())}"
-                    )
+def _validate_value_refs(
+    step_id: str,
+    key: str,
+    value: object,
+    available_outputs: set[str],
+    variables: dict,
+) -> None:
+    """Validate references in a single value, recursing into dicts/lists."""
+    if isinstance(value, dict):
+        for k, v in value.items():
+            _validate_value_refs(step_id, f"{key}.{k}", v, available_outputs, variables)
+        return
+    if isinstance(value, list):
+        for i, v in enumerate(value):
+            _validate_value_refs(step_id, f"{key}[{i}]", v, available_outputs, variables)
+        return
+    if not isinstance(value, str):
+        return
+
+    # Step reference
+    if value.startswith("$") and not value.startswith("${"):
+        ref_body = value[1:]
+        if "." not in ref_body:
+            raise PipelineValidationError(
+                f"Step '{step_id}', param '{key}': invalid reference '{value}'. "
+                f"Expected format: $other_step_id.attribute"
+            )
+        ref_step_id = ref_body.split(".")[0]
+        if ref_step_id not in available_outputs:
+            raise PipelineValidationError(
+                f"Step '{step_id}', param '{key}': references step '{ref_step_id}' "
+                f"which has not been defined before this step. "
+                f"Available: {sorted(available_outputs)}"
+            )
+
+    # Variable reference
+    if "${" in value:
+        for match in re.finditer(r"\$\{(\w+)\}", value):
+            var_name = match.group(1)
+            if var_name not in variables:
+                raise PipelineValidationError(
+                    f"Step '{step_id}', param '{key}': variable '${{{var_name}}}' "
+                    f"is not defined in pipeline.variables. "
+                    f"Available: {sorted(variables.keys())}"
+                )

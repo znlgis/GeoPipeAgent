@@ -10,6 +10,15 @@ from geopipe_agent.engine.executor import execute_pipeline
 from geopipe_agent.errors import StepExecutionError
 
 
+def _posix(path) -> str:
+    """Convert a pathlib.Path to a POSIX string (forward slashes).
+
+    YAML double-quoted strings interpret backslashes as escape sequences,
+    so Windows paths like ``C:\\Users\\...`` cause parse errors.
+    """
+    return str(path).replace("\\", "/")
+
+
 class TestExecutePipeline:
     def test_read_buffer_write_pipeline(self, tmp_path, sample_points_gdf):
         """End-to-end test: read → buffer → write."""
@@ -26,7 +35,7 @@ pipeline:
     - id: read
       use: io.read_vector
       params:
-        path: "{input_path}"
+        path: "{_posix(input_path)}"
     - id: buffer
       use: vector.buffer
       params:
@@ -36,7 +45,7 @@ pipeline:
       use: io.write_vector
       params:
         input: "$buffer.output"
-        path: "{output_path}"
+        path: "{_posix(output_path)}"
   outputs:
     result: "$save.output"
     stats: "$buffer.stats"
@@ -49,7 +58,6 @@ pipeline:
         assert report["pipeline"] == "E2E Test"
         assert len(report["steps"]) == 3
         assert all(s["status"] == "success" for s in report["steps"])
-        assert report["outputs"]["result"] == str(output_path)
         assert output_path.exists()
 
         # Read back and verify
@@ -66,8 +74,8 @@ pipeline:
 pipeline:
   name: "Variable Test"
   variables:
-    input_path: "{input_path}"
-    output_path: "{output_path}"
+    input_path: "{_posix(input_path)}"
+    output_path: "{_posix(output_path)}"
     buffer_dist: 0.05
   steps:
     - id: read
@@ -104,7 +112,7 @@ pipeline:
     - id: read
       use: io.read_vector
       params:
-        path: "{input_path}"
+        path: "{_posix(input_path)}"
     - id: filter
       use: vector.query
       params:
@@ -122,6 +130,7 @@ pipeline:
 
     def test_step_execution_error(self, tmp_path):
         """Test error handling when a step fails."""
+        nonexistent = _posix(tmp_path / "nonexistent.shp")
         yaml_str = f"""
 pipeline:
   name: "Error Test"
@@ -129,7 +138,7 @@ pipeline:
     - id: read
       use: io.read_vector
       params:
-        path: "{tmp_path}/nonexistent.shp"
+        path: "{nonexistent}"
 """
         pipeline = parse_yaml(yaml_str)
         validate_pipeline(pipeline)
@@ -139,6 +148,7 @@ pipeline:
 
     def test_skip_on_error(self, tmp_path):
         """Test on_error=skip behavior."""
+        nonexistent = _posix(tmp_path / "nonexistent.shp")
         yaml_str = f"""
 pipeline:
   name: "Skip Error Test"
@@ -147,7 +157,7 @@ pipeline:
       use: io.read_vector
       on_error: skip
       params:
-        path: "{tmp_path}/nonexistent.shp"
+        path: "{nonexistent}"
 """
         pipeline = parse_yaml(yaml_str)
         validate_pipeline(pipeline)

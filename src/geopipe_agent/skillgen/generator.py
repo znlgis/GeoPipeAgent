@@ -174,9 +174,9 @@ pipeline:
 
 - `io.*` — Data I/O (read/write vector and raster)
 - `vector.*` — Vector analysis (buffer, clip, reproject, dissolve, simplify, query, overlay)
-- `raster.*` — Raster analysis (planned)
-- `analysis.*` — Advanced analysis (planned)
-- `network.*` — Network analysis (planned)
+- `raster.*` — Raster analysis (reproject, clip, calc, stats, contour)
+- `analysis.*` — Advanced analysis (voronoi, heatmap, interpolate, cluster)
+- `network.*` — Network analysis (shortest_path, service_area, geocode)
 
 ## Files
 

@@ -45,15 +45,18 @@ class _StepInfo:
 
 
 class StepRegistry:
-    """Singleton registry holding all step definitions."""
+    """Singleton registry holding all step definitions.
+
+    Uses the singleton pattern to ensure a single global catalog of steps.
+    Access via ``StepRegistry()`` always returns the same instance.
+    """
 
     _instance: StepRegistry | None = None
-    _steps: dict[str, _StepInfo] = {}
 
     def __new__(cls) -> StepRegistry:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._steps = {}
+            cls._instance._steps: dict[str, _StepInfo] = {}
         return cls._instance
 
     def register(self, info: _StepInfo) -> None:

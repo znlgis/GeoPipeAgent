@@ -217,7 +217,12 @@ def _evaluate_condition(condition: str, context: PipelineContext) -> bool:
       - ``$step_id.attr == value`` / ``!= / > / < / >= / <=``
       - Variable substitution ``${var}``
       - Bare step output references ``$step_id.output`` (truthy check)
+
+    Security: Uses AST validation to ensure only comparison/boolean
+    expressions are evaluated — no function calls, attribute access,
+    or other potentially dangerous constructs.
     """
+    import ast
     import re
 
     resolved = condition
@@ -244,10 +249,44 @@ def _evaluate_condition(condition: str, context: PipelineContext) -> bool:
 
     resolved = re.sub(r"\$(\w+)\.(\w+)", _replace_ref, resolved)
 
+    # Validate AST before eval: only allow safe node types
     try:
-        return bool(eval(resolved, {"__builtins__": {}}, {}))  # noqa: S307
+        tree = ast.parse(resolved, mode="eval")
+    except SyntaxError:
+        logger.warning(
+            "Failed to parse when condition '%s' (resolved: '%s'), treating as False",
+            condition, resolved,
+        )
+        return False
+
+    _SAFE_NODES = (
+        ast.Expression, ast.Compare, ast.BoolOp, ast.UnaryOp, ast.BinOp,
+        ast.Constant, ast.Name, ast.Load,
+        # Comparison / boolean operators
+        ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE,
+        ast.Is, ast.IsNot, ast.In, ast.NotIn,
+        ast.And, ast.Or, ast.Not,
+        ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod,
+    )
+    for node in ast.walk(tree):
+        if not isinstance(node, _SAFE_NODES):
+            logger.warning(
+                "Unsafe AST node '%s' in when condition '%s', treating as False",
+                type(node).__name__, condition,
+            )
+            return False
+
+    try:
+        return bool(eval(  # noqa: S307
+            compile(tree, "<when>", "eval"),
+            {"__builtins__": {}},
+            {},
+        ))
     except Exception:
-        logger.warning("Failed to evaluate when condition '%s' (resolved: '%s'), treating as False", condition, resolved)
+        logger.warning(
+            "Failed to evaluate when condition '%s' (resolved: '%s'), treating as False",
+            condition, resolved,
+        )
         return False
 
 
