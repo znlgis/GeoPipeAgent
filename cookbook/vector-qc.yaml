@@ -1,0 +1,79 @@
+# 矢量数据质检示例
+# 对建筑物矢量数据进行全面质量检查
+
+pipeline:
+  name: "矢量数据质检"
+  description: "对建筑物矢量数据进行几何有效性、属性完整性、坐标系、数值范围等质检"
+
+  variables:
+    input_path: "data/buildings.shp"
+    expected_crs: "EPSG:4326"
+
+  steps:
+    - id: load-data
+      use: io.read_vector
+      params:
+        path: "${input_path}"
+
+    - id: check-crs
+      use: qc.crs_check
+      params:
+        input: "$load-data.output"
+        expected_crs: "${expected_crs}"
+
+    - id: check-geometry
+      use: qc.geometry_validity
+      params:
+        input: "$load-data.output"
+        auto_fix: false
+        severity: "error"
+
+    - id: check-topology
+      use: qc.topology
+      params:
+        input: "$load-data.output"
+        rules: ["no_overlaps"]
+        tolerance: 0.001
+
+    - id: check-attrs
+      use: qc.attribute_completeness
+      params:
+        input: "$load-data.output"
+        required_fields: ["name", "height", "type"]
+        severity: "warning"
+
+    - id: check-domain
+      use: qc.attribute_domain
+      params:
+        input: "$load-data.output"
+        field: "type"
+        allowed_values: ["residential", "commercial", "industrial", "public"]
+
+    - id: check-height
+      use: qc.value_range
+      params:
+        input: "$load-data.output"
+        field: "height"
+        min: 0
+        max: 1000
+        severity: "warning"
+
+    - id: check-duplicates
+      use: qc.duplicate_check
+      params:
+        input: "$load-data.output"
+        check_geometry: true
+        check_fields: ["name"]
+
+    - id: save-geometry-issues
+      use: io.write_vector
+      params:
+        input: "$check-geometry.issues_gdf"
+        path: "output/geometry_issues.geojson"
+        format: "GeoJSON"
+      when: "$check-geometry.issues_count > 0"
+
+  outputs:
+    data: "$load-data.output"
+    geometry_issues: "$check-geometry.issues_gdf"
+    attribute_issues: "$check-attrs.issues_gdf"

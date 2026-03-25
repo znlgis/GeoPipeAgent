@@ -1,0 +1,43 @@
+# 栅格数据质检示例
+# 对 DEM 栅格数据进行质量检查
+
+pipeline:
+  name: "栅格数据质检"
+  description: "对 DEM 栅格数据进行 NoData、值域、分辨率一致性检查"
+
+  variables:
+    input_path: "data/dem.tif"
+
+  steps:
+    - id: load-dem
+      use: io.read_raster
+      params:
+        path: "${input_path}"
+
+    - id: check-nodata
+      use: qc.raster_nodata
+      params:
+        input: "$load-dem.output"
+        expected_nodata: -9999
+        max_nodata_ratio: 0.3
+
+    - id: check-values
+      use: qc.raster_value_range
+      params:
+        input: "$load-dem.output"
+        min: -500
+        max: 9000
+        severity: "error"
+
+    - id: check-resolution
+      use: qc.raster_resolution
+      params:
+        input: "$load-dem.output"
+        expected_x: 30
+        expected_y: 30
+        tolerance: 0.5
+
+  outputs:
+    nodata_issues: "$check-nodata.stats"
+    value_issues: "$check-values.stats"
+    resolution_issues: "$check-resolution.stats"

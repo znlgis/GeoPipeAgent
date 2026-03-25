@@ -177,6 +177,15 @@ pipeline:
 - `raster.*` — Raster analysis (reproject, clip, calc, stats, contour)
 - `analysis.*` — Advanced analysis (voronoi, heatmap, interpolate, cluster)
 - `network.*` — Network analysis (shortest_path, service_area, geocode)
+- `qc.*` — Data quality check (geometry_validity, topology, attribute_completeness, attribute_domain, value_range, duplicate_check, crs_check, raster_nodata, raster_value_range, raster_resolution)
+
+## QC (Quality Check) Steps
+
+QC steps follow a **"Check and Passthrough"** pattern:
+- Input data is passed through unchanged as `output`
+- Issues are collected in `$step.issues` and problem features in `$step.issues_gdf`
+- Multiple QC steps can be chained: `qc.check1 → qc.check2 → qc.check3`
+- Pipeline reports include a `qc_summary` section aggregating all issues
 
 ## Files
 

@@ -30,6 +30,16 @@ def load_builtin_steps() -> None:
     import geopipe_agent.steps.network.shortest_path  # noqa: F401
     import geopipe_agent.steps.network.service_area  # noqa: F401
     import geopipe_agent.steps.network.geocode  # noqa: F401
+    import geopipe_agent.steps.qc.geometry_validity  # noqa: F401
+    import geopipe_agent.steps.qc.topology  # noqa: F401
+    import geopipe_agent.steps.qc.attribute_completeness  # noqa: F401
+    import geopipe_agent.steps.qc.attribute_domain  # noqa: F401
+    import geopipe_agent.steps.qc.value_range  # noqa: F401
+    import geopipe_agent.steps.qc.duplicate_check  # noqa: F401
+    import geopipe_agent.steps.qc.crs_check  # noqa: F401
+    import geopipe_agent.steps.qc.raster_nodata  # noqa: F401
+    import geopipe_agent.steps.qc.raster_value_range  # noqa: F401
+    import geopipe_agent.steps.qc.raster_resolution  # noqa: F401
 
 
 __all__ = ["StepRegistry", "step", "load_builtin_steps"]

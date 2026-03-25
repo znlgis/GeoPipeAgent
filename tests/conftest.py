@@ -35,6 +35,16 @@ def _reload_builtin_steps():
     import geopipe_agent.steps.network.shortest_path
     import geopipe_agent.steps.network.service_area
     import geopipe_agent.steps.network.geocode
+    import geopipe_agent.steps.qc.geometry_validity
+    import geopipe_agent.steps.qc.topology
+    import geopipe_agent.steps.qc.attribute_completeness
+    import geopipe_agent.steps.qc.attribute_domain
+    import geopipe_agent.steps.qc.value_range
+    import geopipe_agent.steps.qc.duplicate_check
+    import geopipe_agent.steps.qc.crs_check
+    import geopipe_agent.steps.qc.raster_nodata
+    import geopipe_agent.steps.qc.raster_value_range
+    import geopipe_agent.steps.qc.raster_resolution
 
     importlib.reload(geopipe_agent.steps.io.read_vector)
     importlib.reload(geopipe_agent.steps.io.write_vector)
@@ -59,6 +69,16 @@ def _reload_builtin_steps():
     importlib.reload(geopipe_agent.steps.network.shortest_path)
     importlib.reload(geopipe_agent.steps.network.service_area)
     importlib.reload(geopipe_agent.steps.network.geocode)
+    importlib.reload(geopipe_agent.steps.qc.geometry_validity)
+    importlib.reload(geopipe_agent.steps.qc.topology)
+    importlib.reload(geopipe_agent.steps.qc.attribute_completeness)
+    importlib.reload(geopipe_agent.steps.qc.attribute_domain)
+    importlib.reload(geopipe_agent.steps.qc.value_range)
+    importlib.reload(geopipe_agent.steps.qc.duplicate_check)
+    importlib.reload(geopipe_agent.steps.qc.crs_check)
+    importlib.reload(geopipe_agent.steps.qc.raster_nodata)
+    importlib.reload(geopipe_agent.steps.qc.raster_value_range)
+    importlib.reload(geopipe_agent.steps.qc.raster_resolution)
 
 
 @pytest.fixture(autouse=True)

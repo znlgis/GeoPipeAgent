@@ -190,6 +190,14 @@ def _execute_step_with_retry(
             step_report["output_summary"] = result.summary()
             if attempt > 1:
                 step_report["retries"] = attempt - 1
+
+            # Propagate QC issues into the step report
+            if result.issues:
+                step_report["issues_count"] = len(result.issues)
+                step_report["issues"] = [
+                    issue.to_dict() for issue in result.issues
+                ]
+
             return  # success
 
         except StepExecutionError:

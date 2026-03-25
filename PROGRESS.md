@@ -8,7 +8,7 @@
 |------|------|------|
 | 项目结构 | ✅ 完成 | pyproject.toml、包结构、依赖配置 |
 | 错误处理 | ✅ 完成 | 全部异常类 + AI 友好错误信息 |
-| 数据模型 | ✅ 完成 | Pipeline、StepDefinition、StepResult |
+| 数据模型 | ✅ 完成 | Pipeline、StepDefinition、StepResult、QcIssue |
 | Step 插件系统 | ✅ 完成 | 注册表、@step 装饰器、StepContext |
 | Backend 系统 | ✅ 完成 | 抽象基类 + GdalPythonBackend（功能完整）+ GdalCliBackend + QgisProcessBackend |
 | Engine 核心 | ✅ 完成 | Parser、Validator、Resolver、Executor、Context、Reporter |
@@ -18,9 +18,10 @@
 | Raster Steps | ✅ 完成 | raster.reproject, raster.clip, raster.calc, raster.stats, raster.contour |
 | Analysis Steps | ✅ 完成 | analysis.voronoi, analysis.heatmap, analysis.interpolate, analysis.cluster |
 | Network Steps | ✅ 完成 | network.shortest_path, network.service_area, network.geocode |
+| QC Steps | ✅ 完成 | qc.geometry_validity, qc.topology, qc.attribute_completeness, qc.attribute_domain, qc.value_range, qc.duplicate_check, qc.crs_check, qc.raster_nodata, qc.raster_value_range, qc.raster_resolution |
 | Skill 生成 | ✅ 完成 | 自动生成 SKILL.md、steps-reference.md、pipeline-schema.md |
-| 测试 | ✅ 完成 | 95 个测试用例，全部通过 |
-| Cookbook | ✅ 完成 | 5 个示例流水线 YAML |
+| 测试 | ✅ 完成 | 139 个测试用例，全部通过 |
+| Cookbook | ✅ 完成 | 7 个示例流水线 YAML（含矢量质检和栅格质检） |
 | GDAL CLI Backend | ✅ 完成 | 全部方法实现（使用 ogr2ogr + subprocess） |
 | QGIS Process Backend | ✅ 完成 | 全部方法实现（使用 qgis_process CLI） |
 | 高级流水线特性 | ✅ 完成 | when 条件执行、retry 重试、on_error: skip |
@@ -116,7 +117,10 @@
 
 - `PipelineDefinition` — 流水线定义（name, steps, variables, outputs, crs）
 - `StepDefinition` — 步骤定义（id, use, params, when, on_error, backend）
-- `StepResult` — 步骤执行结果（output, stats, metadata），支持属性访问和 `summary()`
+- `StepResult` — 步骤执行结果（output, stats, metadata, issues），支持属性访问和 `summary()`
+  - `issues` 字段：QC 步骤填充 `QcIssue` 列表，非 QC 步骤默认为空（向后兼容）
+  - `summary()` 在有 issues 时自动聚合 `issues_count` 和 `issues_by_severity`
+- `QcIssue` — 质检问题记录（rule_id, severity, feature_index, message, geometry, details），支持 `to_dict()` 序列化
 
 ### 4. Step 插件系统 (`src/geopipe_agent/steps/`)
 
@@ -139,7 +143,7 @@
 - `resolver.py` — 参数解析入口
 - `context.py` — PipelineContext（变量替换 `${var}`、步骤引用 `$step.attr`、参数批量解析）
 - `executor.py` — 顺序执行步骤、自动选择 Backend、on_error=skip/retry 支持、when 条件执行、AST 安全验证、AI 友好修复建议
-- `reporter.py` — 生成 JSON 执行报告
+- `reporter.py` — 生成 JSON 执行报告，含 QC 步骤的 `qc_summary` 聚合（总 issues 数、按严重级别/规则 ID 分组统计）
 
 ### 7. CLI (`src/geopipe_agent/cli.py`)
 
@@ -154,7 +158,7 @@
 | `geopipe-agent generate-skill-doc` | 生成 Steps 参考文档（stdout） |
 | `geopipe-agent generate-skill --output-dir <dir>` | 生成完整 Skill 文件集 |
 
-### 8. 已实现的 Steps（共 23 个）
+### 8. 已实现的 Steps（共 33 个）
 
 | Step ID | 名称 | 类别 | 说明 |
 |---------|------|------|------|
@@ -181,6 +185,16 @@
 | `network.shortest_path` | 最短路径 | network | networkx 图论算法 |
 | `network.service_area` | 服务区分析 | network | networkx 等时圈 |
 | `network.geocode` | 地理编码 | network | geopy Nominatim |
+| `qc.geometry_validity` | 几何有效性检查 | qc | 检测自相交、空几何等，支持 auto_fix |
+| `qc.topology` | 拓扑关系检查 | qc | no_overlaps, no_gaps, no_dangles 三种规则 |
+| `qc.attribute_completeness` | 属性完整性检查 | qc | 必填字段缺失或为空值检测 |
+| `qc.attribute_domain` | 属性值域检查 | qc | 枚举允许值列表或正则模式匹配 |
+| `qc.value_range` | 数值范围检查 | qc | 数值字段 min/max 阈值检查 |
+| `qc.duplicate_check` | 重复要素检查 | qc | 几何重复和属性重复检测 |
+| `qc.crs_check` | 坐标参考系检查 | qc | CRS 存在性和匹配性验证 |
+| `qc.raster_nodata` | NoData一致性检查 | qc | NoData 设置和比例异常检测 |
+| `qc.raster_value_range` | 栅格值域检查 | qc | 像素值范围检查，支持多波段 |
+| `qc.raster_resolution` | 分辨率一致性检查 | qc | 像元大小一致性验证 |
 
 ### 9. 测试 (`tests/`)
 
@@ -196,7 +210,8 @@
 - `test_steps/test_analysis_steps.py` — 8 个测试（分析步骤）
 - `test_steps/test_network_steps.py` — 5 个测试（网络步骤）
 - `test_backends/test_gdal_python.py` — 9 个测试（GdalPython 后端）
-- **共计 95 个测试，全部通过**
+- `test_steps/test_qc_steps.py` — 44 个测试（QC 步骤、QcIssue 模型、StepResult issues 集成、Reporter QC 聚合、注册表完整性）
+- **共计 139 个测试，全部通过**
 
 ### 10. Cookbook (`cookbook/`)
 
@@ -207,6 +222,8 @@
 | `batch-convert.yaml` | 批量格式转换（Shapefile→GeoJSON + 投影） |
 | `filter-simplify.yaml` | 属性筛选 + 几何简化 |
 | `dissolve-analysis.yaml` | 按属性融合分析 |
+| `vector-qc.yaml` | 矢量数据全面质检（几何、属性、拓扑、CRS、重复） |
+| `raster-qc.yaml` | 栅格数据质检（NoData、值域、分辨率） |
 
 ---
 
@@ -222,6 +239,7 @@
 | 指定后端 `backend` | ✅ 完成 | 通过 BackendManager 选择 |
 | `@step` 装饰器注册 | ✅ 完成 | 自动推导 category |
 | 5 个 Step 类别 | ✅ 完成 | io(4) + vector(7) + raster(5) + analysis(4) + network(3) = 23 |
+| QC Step 类别 | ✅ 完成 | qc(10): 7 矢量质检 + 3 栅格质检 = 33 总步骤 |
 | 3 个 Backend 实现 | ✅ 完成 | gdal_python + gdal_cli + qgis_process |
 | Backend 自动检测 | ✅ 完成 | BackendManager._detect_available() |
 | CLI 全部 8 个命令 | ✅ 完成 | run, validate, list-steps, describe, info, backends, generate-skill-doc, generate-skill |
@@ -269,9 +287,15 @@
 4. **添加新 Step 的检查清单**：
    - [ ] 创建步骤模块文件（使用 `@step` 装饰器）
    - [ ] 在 `steps/__init__.py` 的 `load_builtin_steps()` 中添加 import
+   - [ ] 在 `tests/conftest.py` 的 `_reload_builtin_steps()` 中添加 import 和 reload
    - [ ] 如需 Backend 支持，在 `GeoBackend` 基类添加抽象方法
    - [ ] 在 `GdalPythonBackend` 中实现具体方法
    - [ ] 编写单元测试
    - [ ] 运行 `geopipe-agent generate-skill-doc` 验证文档自动生成
-5. **Windows 兼容性**：在测试中使用 YAML 模板嵌入文件路径时，务必转换为 POSIX 风格（正斜杠），否则反斜杠会被 YAML 解析器解释为转义字符
-6. **eval() 安全规范**：所有涉及动态表达式求值的场景，必须使用 AST 白名单验证，不得仅依赖 `__builtins__={}` 或黑名单正则
+5. **QC 步骤开发规范**：
+   - QC 步骤 ID 统一使用 `qc.` 前缀，category 为 `"qc"`
+   - 遵循 "Check and Passthrough" 模式：output 透传原始数据，issues 收集在 `StepResult.issues`
+   - 矢量 QC 步骤须提供 `metadata={"issues_gdf": ...}` 以支持 `$step.issues_gdf` 引用
+   - 栅格 QC 步骤无需提供 `issues_gdf`（无逐要素概念）
+6. **Windows 兼容性**：在测试中使用 YAML 模板嵌入文件路径时，务必转换为 POSIX 风格（正斜杠），否则反斜杠会被 YAML 解析器解释为转义字符
+7. **eval() 安全规范**：所有涉及动态表达式求值的场景，必须使用 AST 白名单验证，不得仅依赖 `__builtins__={}` 或黑名单正则
