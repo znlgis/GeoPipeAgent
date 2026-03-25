@@ -2,90 +2,18 @@
 
 from __future__ import annotations
 
-import importlib
 import pytest
 import geopandas as gpd
 from shapely.geometry import Point, Polygon
 
-from geopipe_agent.steps.registry import StepRegistry
-
-
-def _reload_builtin_steps():
-    """Force-reload all step modules to re-trigger @step decorators."""
-    import geopipe_agent.steps.io.read_vector
-    import geopipe_agent.steps.io.write_vector
-    import geopipe_agent.steps.io.read_raster
-    import geopipe_agent.steps.io.write_raster
-    import geopipe_agent.steps.vector.buffer
-    import geopipe_agent.steps.vector.clip
-    import geopipe_agent.steps.vector.reproject
-    import geopipe_agent.steps.vector.dissolve
-    import geopipe_agent.steps.vector.simplify
-    import geopipe_agent.steps.vector.query
-    import geopipe_agent.steps.vector.overlay
-    import geopipe_agent.steps.raster.reproject
-    import geopipe_agent.steps.raster.clip
-    import geopipe_agent.steps.raster.calc
-    import geopipe_agent.steps.raster.stats
-    import geopipe_agent.steps.raster.contour
-    import geopipe_agent.steps.analysis.voronoi
-    import geopipe_agent.steps.analysis.heatmap
-    import geopipe_agent.steps.analysis.interpolate
-    import geopipe_agent.steps.analysis.cluster
-    import geopipe_agent.steps.network.shortest_path
-    import geopipe_agent.steps.network.service_area
-    import geopipe_agent.steps.network.geocode
-    import geopipe_agent.steps.qc.geometry_validity
-    import geopipe_agent.steps.qc.topology
-    import geopipe_agent.steps.qc.attribute_completeness
-    import geopipe_agent.steps.qc.attribute_domain
-    import geopipe_agent.steps.qc.value_range
-    import geopipe_agent.steps.qc.duplicate_check
-    import geopipe_agent.steps.qc.crs_check
-    import geopipe_agent.steps.qc.raster_nodata
-    import geopipe_agent.steps.qc.raster_value_range
-    import geopipe_agent.steps.qc.raster_resolution
-
-    importlib.reload(geopipe_agent.steps.io.read_vector)
-    importlib.reload(geopipe_agent.steps.io.write_vector)
-    importlib.reload(geopipe_agent.steps.io.read_raster)
-    importlib.reload(geopipe_agent.steps.io.write_raster)
-    importlib.reload(geopipe_agent.steps.vector.buffer)
-    importlib.reload(geopipe_agent.steps.vector.clip)
-    importlib.reload(geopipe_agent.steps.vector.reproject)
-    importlib.reload(geopipe_agent.steps.vector.dissolve)
-    importlib.reload(geopipe_agent.steps.vector.simplify)
-    importlib.reload(geopipe_agent.steps.vector.query)
-    importlib.reload(geopipe_agent.steps.vector.overlay)
-    importlib.reload(geopipe_agent.steps.raster.reproject)
-    importlib.reload(geopipe_agent.steps.raster.clip)
-    importlib.reload(geopipe_agent.steps.raster.calc)
-    importlib.reload(geopipe_agent.steps.raster.stats)
-    importlib.reload(geopipe_agent.steps.raster.contour)
-    importlib.reload(geopipe_agent.steps.analysis.voronoi)
-    importlib.reload(geopipe_agent.steps.analysis.heatmap)
-    importlib.reload(geopipe_agent.steps.analysis.interpolate)
-    importlib.reload(geopipe_agent.steps.analysis.cluster)
-    importlib.reload(geopipe_agent.steps.network.shortest_path)
-    importlib.reload(geopipe_agent.steps.network.service_area)
-    importlib.reload(geopipe_agent.steps.network.geocode)
-    importlib.reload(geopipe_agent.steps.qc.geometry_validity)
-    importlib.reload(geopipe_agent.steps.qc.topology)
-    importlib.reload(geopipe_agent.steps.qc.attribute_completeness)
-    importlib.reload(geopipe_agent.steps.qc.attribute_domain)
-    importlib.reload(geopipe_agent.steps.qc.value_range)
-    importlib.reload(geopipe_agent.steps.qc.duplicate_check)
-    importlib.reload(geopipe_agent.steps.qc.crs_check)
-    importlib.reload(geopipe_agent.steps.qc.raster_nodata)
-    importlib.reload(geopipe_agent.steps.qc.raster_value_range)
-    importlib.reload(geopipe_agent.steps.qc.raster_resolution)
+from geopipe_agent.steps import registry, reload_builtin_steps
 
 
 @pytest.fixture(autouse=True)
 def reset_registry():
     """Reset the step registry before each test and reload built-in steps."""
-    StepRegistry.reset()
-    _reload_builtin_steps()
+    registry.reset()
+    reload_builtin_steps()
     yield
 
 

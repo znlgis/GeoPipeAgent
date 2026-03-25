@@ -51,13 +51,13 @@ class PipelineContext:
         return value
 
     def _resolve_step_ref(self, ref: str) -> Any:
-        """Resolve ``$step_id.attr`` to the actual value."""
+        """Resolve ``$step_id.attr`` or ``$step_id`` (shorthand for ``.output``)."""
         ref_body = ref[1:]  # strip leading $
         if "." not in ref_body:
-            raise VariableResolutionError(
-                f"Invalid step reference '{ref}'. Expected format: $step_id.attribute"
-            )
-        step_id, attr = ref_body.split(".", 1)
+            # Shorthand: $step_id → $step_id.output
+            step_id, attr = ref_body, "output"
+        else:
+            step_id, attr = ref_body.split(".", 1)
         if step_id not in self._step_outputs:
             raise VariableResolutionError(
                 f"Step reference '{ref}' failed: step '{step_id}' has no output. "

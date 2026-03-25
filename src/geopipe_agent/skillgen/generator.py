@@ -7,8 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from geopipe_agent.steps import load_builtin_steps
-from geopipe_agent.steps.registry import StepRegistry
+from geopipe_agent.steps import registry
 
 
 def generate_steps_reference() -> str:
@@ -17,9 +16,6 @@ def generate_steps_reference() -> str:
     Returns:
         Markdown string documenting all steps.
     """
-    load_builtin_steps()
-    registry = StepRegistry()
-
     lines = [
         "# GeoPipeAgent Steps Reference",
         "",
@@ -104,8 +100,10 @@ pipeline:
 
 | Syntax | Description | Example |
 |--------|-------------|---------|
+| `$step_id` | Shorthand for `$step_id.output` | `$buffer` |
 | `$step_id.output` | Reference step output | `$buffer.output` |
 | `$step_id.stats` | Reference step stats | `$buffer.stats` |
+| `$step_id.<key>` | Reference stats/metadata key | `$buffer.feature_count` |
 | `${var_name}` | Variable substitution | `${input_path}` |
 
 ## Step ID Rules
@@ -152,21 +150,21 @@ pipeline:
     - id: buffer
       use: vector.buffer
       params:
-        input: "$read.output"
+        input: "$read"
         distance: 500
     - id: save
       use: io.write_vector
       params:
-        input: "$buffer.output"
+        input: "$buffer"
         path: "output/buffer_result.geojson"
   outputs:
-    result: "$save.output"
+    result: "$save"
 ```
 
 ## Key Concepts
 
 - **Steps** are identified by `category.action` (e.g., `io.read_vector`, `vector.buffer`)
-- **Step references** use `$step_id.attribute` syntax (e.g., `$read.output`)
+- **Step references** use `$step_id` (shorthand for `$step_id.output`) or `$step_id.attribute` (e.g., `$buffer.feature_count`)
 - **Variables** use `${var_name}` syntax
 - **IO steps** (io.*) read/write files directly; **analysis steps** use GIS backends
 

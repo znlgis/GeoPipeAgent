@@ -8,14 +8,15 @@ from typing import Any
 
 from geopipe_agent.backends import BackendManager
 from geopipe_agent.engine.context import PipelineContext, StepContext
-from geopipe_agent.engine.resolver import resolve_step_params
 from geopipe_agent.engine.reporter import build_report
 from geopipe_agent.errors import StepExecutionError
 from geopipe_agent.models.pipeline import PipelineDefinition
 from geopipe_agent.models.result import StepResult
-from geopipe_agent.steps.registry import StepRegistry
+from geopipe_agent.steps import registry
 
 logger = logging.getLogger("geopipe_agent")
+
+_MAX_RETRIES = 3
 
 
 def execute_pipeline(pipeline: PipelineDefinition) -> dict:
@@ -27,14 +28,13 @@ def execute_pipeline(pipeline: PipelineDefinition) -> dict:
       3. Build and return execution report
     """
     context = PipelineContext(variables=pipeline.variables)
-    registry = StepRegistry()
     backend_manager = BackendManager()
 
     step_reports: list[dict] = []
     pipeline_start = time.time()
     overall_status = "success"
 
-    for i, step_def in enumerate(pipeline.steps):
+    for step_def in pipeline.steps:
         step_start = time.time()
         step_report: dict[str, Any] = {
             "id": step_def.id,
@@ -49,28 +49,18 @@ def execute_pipeline(pipeline: PipelineDefinition) -> dict:
                 step_report["duration"] = round(time.time() - step_start, 3)
                 step_report["skip_reason"] = f"condition not met: {step_def.when}"
                 step_reports.append(step_report)
-                # Store empty result so subsequent references don't fail
                 context.set_output(step_def.id, StepResult())
-                logger.info(
-                    "Step '%s' skipped (when=%s)",
-                    step_def.id,
-                    step_def.when,
-                )
+                logger.info("Step '%s' skipped (when=%s)", step_def.id, step_def.when)
                 continue
 
         try:
-            _execute_step_with_retry(
-                step_def, i, pipeline, context, registry, backend_manager,
-                step_report, step_start,
+            _execute_step(
+                step_def, context, backend_manager, step_report, step_start,
             )
-
             logger.info(
                 "Step '%s' (%s) completed in %.3fs",
-                step_def.id,
-                step_def.use,
-                step_report["duration"],
+                step_def.id, step_def.use, step_report["duration"],
             )
-
         except StepExecutionError:
             raise
         except Exception as e:
@@ -80,19 +70,14 @@ def execute_pipeline(pipeline: PipelineDefinition) -> dict:
             step_report["error"] = str(e)
 
             if step_def.on_error == "skip":
-                logger.warning(
-                    "Step '%s' failed (skipped): %s", step_def.id, e
-                )
+                logger.warning("Step '%s' failed (skipped): %s", step_def.id, e)
                 step_report["status"] = "skipped"
-                # Store empty result so subsequent steps can reference it
                 context.set_output(step_def.id, StepResult())
             else:
                 overall_status = "error"
                 step_reports.append(step_report)
                 raise StepExecutionError(
-                    step_def.id,
-                    str(e),
-                    cause=e,
+                    step_def.id, str(e), cause=e,
                     suggestion=_suggest_fix(step_def.use, e),
                 ) from e
 
@@ -117,67 +102,43 @@ def execute_pipeline(pipeline: PipelineDefinition) -> dict:
     )
 
 
-def _suggest_fix(step_use: str, error: Exception) -> str | None:
-    """Generate an AI-friendly fix suggestion based on the error."""
-    msg = str(error).lower()
-    if "crs" in msg and ("mismatch" in msg or "degree" in msg):
-        return "Add a vector.reproject step before this step to convert to a projected CRS."
-    if "file not found" in msg or "no such file" in msg:
-        return "Check that the input file path is correct and the file exists."
-    if "permission" in msg:
-        return "Check file permissions for the input/output paths."
-    return None
-
-
-_MAX_RETRIES = 3
-
-
-def _execute_step_with_retry(
+def _execute_step(
     step_def,
-    step_index: int,
-    pipeline: PipelineDefinition,
     context: PipelineContext,
-    registry: StepRegistry,
     backend_manager: BackendManager,
     step_report: dict,
     step_start: float,
 ) -> None:
-    """Execute a single step, optionally retrying on failure.
-
-    When ``step_def.on_error == "retry"``, the step is retried up to
-    ``_MAX_RETRIES`` times before giving up.
-    """
+    """Execute a single step, optionally retrying on failure."""
     max_attempts = _MAX_RETRIES if step_def.on_error == "retry" else 1
     last_error: Exception | None = None
 
     for attempt in range(1, max_attempts + 1):
         try:
             # Resolve parameters
-            resolved_params = resolve_step_params(pipeline, step_index, context)
+            resolved_params = context.resolve_params(step_def.params)
 
-            # Select backend
+            # Look up step info
             step_info = registry.get(step_def.use)
             if step_info is None:
                 raise StepExecutionError(
                     step_def.id,
                     f"Step type '{step_def.use}' is not registered.",
-                    suggestion="Check that the step module is imported and the step id is correct.",
+                    suggestion="Check that the step id is correct. "
+                    f"Available: {[s.id for s in registry.list_all()]}",
                 )
 
-            # Determine backend: IO steps don't use backends
+            # Determine backend (IO steps don't use backends)
             backend = None
             if step_info.category not in ("io",):
-                preferred = step_def.backend
-                backend = backend_manager.get(preferred)
+                backend = backend_manager.get(step_def.backend)
 
-            # Build step context
+            # Build step context and execute
             step_ctx = StepContext(
                 params=resolved_params,
                 backend=backend,
                 pipeline_context=context,
             )
-
-            # Execute step function
             result = step_info.func(step_ctx)
             if not isinstance(result, StepResult):
                 result = StepResult(output=result)
@@ -191,12 +152,9 @@ def _execute_step_with_retry(
             if attempt > 1:
                 step_report["retries"] = attempt - 1
 
-            # Propagate QC issues into the step report
             if result.issues:
                 step_report["issues_count"] = len(result.issues)
-                step_report["issues"] = [
-                    issue.to_dict() for issue in result.issues
-                ]
+                step_report["issues"] = [issue.to_dict() for issue in result.issues]
 
             return  # success
 
@@ -209,13 +167,24 @@ def _execute_step_with_retry(
                     "Step '%s' failed (attempt %d/%d): %s — retrying…",
                     step_def.id, attempt, max_attempts, e,
                 )
-                time.sleep(0.5 * attempt)  # simple back-off
+                time.sleep(0.5 * attempt)
             else:
                 break
 
-    # All retries exhausted — re-raise
     assert last_error is not None
     raise last_error
+
+
+def _suggest_fix(step_use: str, error: Exception) -> str | None:
+    """Generate an AI-friendly fix suggestion based on the error."""
+    msg = str(error).lower()
+    if "crs" in msg and ("mismatch" in msg or "degree" in msg):
+        return "Add a vector.reproject step before this step to convert to a projected CRS."
+    if "file not found" in msg or "no such file" in msg:
+        return "Check that the input file path is correct and the file exists."
+    if "permission" in msg:
+        return "Check file permissions for the input/output paths."
+    return None
 
 
 def _evaluate_condition(condition: str, context: PipelineContext) -> bool:
@@ -246,7 +215,7 @@ def _evaluate_condition(condition: str, context: PipelineContext) -> bool:
 
     resolved = re.sub(r"\$\{(\w+)\}", _replace_var, resolved)
 
-    # Replace $step_id.attr references
+    # Replace $step_id.attr and bare $step_id references
     def _replace_ref(m: re.Match) -> str:
         ref = m.group(0)
         try:
@@ -255,7 +224,8 @@ def _evaluate_condition(condition: str, context: PipelineContext) -> bool:
         except Exception:
             return repr(None)
 
-    resolved = re.sub(r"\$(\w+)\.(\w+)", _replace_ref, resolved)
+    # Match $step_id.attr first (longer match), then bare $step_id
+    resolved = re.sub(r"\$(\w[\w-]*)(?:\.(\w+))?", _replace_ref, resolved)
 
     # Validate AST before eval: only allow safe node types
     try:
@@ -270,7 +240,6 @@ def _evaluate_condition(condition: str, context: PipelineContext) -> bool:
     _SAFE_NODES = (
         ast.Expression, ast.Compare, ast.BoolOp, ast.UnaryOp, ast.BinOp,
         ast.Constant, ast.Name, ast.Load,
-        # Comparison / boolean operators
         ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE,
         ast.Is, ast.IsNot, ast.In, ast.NotIn,
         ast.And, ast.Or, ast.Not,
@@ -307,7 +276,6 @@ def _summarize_output(value: Any) -> Any:
     if isinstance(value, dict):
         return value
     try:
-        # GeoDataFrame-like
         return {
             "type": "GeoDataFrame",
             "feature_count": len(value),

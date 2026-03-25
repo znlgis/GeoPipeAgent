@@ -7,6 +7,7 @@ import sys
 
 import click
 
+import geopipe_agent  # noqa: F401 — triggers auto-loading of built-in steps
 from geopipe_agent.utils.logging import setup_logging
 
 
@@ -26,14 +27,12 @@ def run(file: str, log_level: str, json_log: bool, var: tuple[str, ...]):
     """Run a YAML pipeline file."""
     setup_logging(level=log_level, json_format=json_log)
 
-    from geopipe_agent.steps import load_builtin_steps
     from geopipe_agent.engine.parser import parse_yaml
     from geopipe_agent.engine.validator import validate_pipeline
     from geopipe_agent.engine.executor import execute_pipeline
     from geopipe_agent.errors import GeopipeAgentError
 
     try:
-        load_builtin_steps()
         pipeline = parse_yaml(file)
 
         # Apply --var overrides
@@ -72,13 +71,11 @@ def validate(file: str, log_level: str):
     """Validate a YAML pipeline file without executing it."""
     setup_logging(level=log_level)
 
-    from geopipe_agent.steps import load_builtin_steps
     from geopipe_agent.engine.parser import parse_yaml
     from geopipe_agent.engine.validator import validate_pipeline
     from geopipe_agent.errors import GeopipeAgentError
 
     try:
-        load_builtin_steps()
         pipeline = parse_yaml(file)
         warnings = validate_pipeline(pipeline)
         result = {
@@ -101,11 +98,7 @@ def validate(file: str, log_level: str):
 @click.option("--format", "fmt", type=click.Choice(["table", "json"]), default="table", help="Output format")
 def list_steps(category: str | None, fmt: str):
     """List all available pipeline steps."""
-    from geopipe_agent.steps import load_builtin_steps
-    from geopipe_agent.steps.registry import StepRegistry
-
-    load_builtin_steps()
-    registry = StepRegistry()
+    from geopipe_agent.steps import registry
 
     if category:
         steps = registry.list_by_category(category)
@@ -128,11 +121,8 @@ def list_steps(category: str | None, fmt: str):
 @click.argument("step_id")
 def describe(step_id: str):
     """Show detailed information about a specific step."""
-    from geopipe_agent.steps import load_builtin_steps
-    from geopipe_agent.steps.registry import StepRegistry
+    from geopipe_agent.steps import registry
 
-    load_builtin_steps()
-    registry = StepRegistry()
     info = registry.get(step_id)
 
     if info is None:
