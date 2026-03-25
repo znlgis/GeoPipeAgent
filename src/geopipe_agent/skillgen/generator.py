@@ -7,8 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from geopipe_agent.steps import load_builtin_steps
-from geopipe_agent.steps.registry import StepRegistry
+from geopipe_agent.steps import registry
 
 
 def generate_steps_reference() -> str:
@@ -17,9 +16,6 @@ def generate_steps_reference() -> str:
     Returns:
         Markdown string documenting all steps.
     """
-    load_builtin_steps()
-    registry = StepRegistry()
-
     lines = [
         "# GeoPipeAgent Steps Reference",
         "",

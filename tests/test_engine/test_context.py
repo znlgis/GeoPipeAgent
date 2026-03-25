@@ -46,7 +46,9 @@ class TestPipelineContext:
 
     def test_invalid_step_reference_format(self):
         ctx = PipelineContext()
-        with pytest.raises(VariableResolutionError, match="Expected format"):
+        # $nostep is now valid syntax (shorthand for $nostep.output),
+        # but fails because the step doesn't exist
+        with pytest.raises(VariableResolutionError, match="no output"):
             ctx.resolve("$nostep")
 
     def test_plain_value_passthrough(self):

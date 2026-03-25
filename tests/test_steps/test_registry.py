@@ -2,8 +2,7 @@
 
 import pytest
 
-from geopipe_agent.steps.registry import StepRegistry, _StepInfo
-from geopipe_agent.steps.decorators import step
+from geopipe_agent.steps.registry import StepRegistry, StepInfo, step
 
 
 class TestStepRegistry:

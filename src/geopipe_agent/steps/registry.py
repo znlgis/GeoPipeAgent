@@ -1,34 +1,32 @@
-"""Step registry — global catalog of all registered steps."""
+"""Step registry — global catalog of all registered steps.
+
+Module-level registry (no singleton class needed). The ``@step`` decorator
+auto-registers step functions here on import.
+"""
 
 from __future__ import annotations
 
-from typing import Callable
+from dataclasses import dataclass, field
+from typing import Any, Callable
 
 
-class _StepInfo:
+@dataclass
+class StepInfo:
     """Metadata for a registered step."""
 
-    def __init__(
-        self,
-        id: str,
-        func: Callable,
-        name: str = "",
-        description: str = "",
-        category: str = "",
-        params: dict | None = None,
-        outputs: dict | None = None,
-        backends: list[str] | None = None,
-        examples: list[dict] | None = None,
-    ):
-        self.id = id
-        self.func = func
-        self.name = name or id
-        self.description = description
-        self.category = category
-        self.params = params or {}
-        self.outputs = outputs or {}
-        self.backends = backends or []
-        self.examples = examples or []
+    id: str
+    func: Callable
+    name: str = ""
+    description: str = ""
+    category: str = ""
+    params: dict = field(default_factory=dict)
+    outputs: dict = field(default_factory=dict)
+    backends: list[str] = field(default_factory=list)
+    examples: list[dict] = field(default_factory=list)
+
+    def __post_init__(self):
+        if not self.name:
+            self.name = self.id
 
     def to_dict(self) -> dict:
         """Serialize step info for documentation / skill generation."""
@@ -44,41 +42,119 @@ class _StepInfo:
         }
 
 
-class StepRegistry:
-    """Singleton registry holding all step definitions.
+# ---------------------------------------------------------------------------
+# Module-level registry
+# ---------------------------------------------------------------------------
 
-    Uses the singleton pattern to ensure a single global catalog of steps.
-    Access via ``StepRegistry()`` always returns the same instance.
+_steps: dict[str, StepInfo] = {}
+
+
+def register(info: StepInfo) -> None:
+    _steps[info.id] = info
+
+
+def get(step_id: str) -> StepInfo | None:
+    return _steps.get(step_id)
+
+
+def list_all() -> list[StepInfo]:
+    return list(_steps.values())
+
+
+def list_by_category(category: str) -> list[StepInfo]:
+    return [s for s in _steps.values() if s.category == category]
+
+
+def has(step_id: str) -> bool:
+    return step_id in _steps
+
+
+def categories() -> list[str]:
+    return sorted({s.category for s in _steps.values()})
+
+
+def reset() -> None:
+    """Clear the registry (useful for testing)."""
+    _steps.clear()
+
+
+# ---------------------------------------------------------------------------
+# @step decorator
+# ---------------------------------------------------------------------------
+
+
+def step(
+    id: str,
+    name: str = "",
+    description: str = "",
+    category: str = "",
+    params: dict | None = None,
+    outputs: dict | None = None,
+    backends: list[str] | None = None,
+    examples: list[dict] | None = None,
+) -> Callable:
+    """Decorator that registers a function as a pipeline step.
+
+    Usage::
+
+        @step(
+            id="vector.buffer",
+            name="Buffer",
+            description="Generate buffer polygons",
+            params={"input": {"type": "geodataframe", "required": True}},
+            outputs={"output": {"type": "geodataframe"}},
+        )
+        def vector_buffer(ctx):
+            ...
     """
 
-    _instance: StepRegistry | None = None
+    def decorator(func: Callable) -> Callable:
+        cat = category or (id.split(".")[0] if "." in id else "")
+        info = StepInfo(
+            id=id,
+            func=func,
+            name=name,
+            description=description,
+            category=cat,
+            params=params or {},
+            outputs=outputs or {},
+            backends=backends or [],
+            examples=examples or [],
+        )
+        register(info)
+        func._step_info = info  # type: ignore[attr-defined]
+        return func
 
-    def __new__(cls) -> StepRegistry:
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._steps: dict[str, _StepInfo] = {}
-        return cls._instance
+    return decorator
 
-    def register(self, info: _StepInfo) -> None:
-        self._steps[info.id] = info
 
-    def get(self, step_id: str) -> _StepInfo | None:
-        return self._steps.get(step_id)
+# ---------------------------------------------------------------------------
+# Backward-compatible wrapper so existing ``StepRegistry()`` calls keep working
+# during migration. All methods delegate to the module-level functions above.
+# ---------------------------------------------------------------------------
 
-    def list_all(self) -> list[_StepInfo]:
-        return list(self._steps.values())
 
-    def list_by_category(self, category: str) -> list[_StepInfo]:
-        return [s for s in self._steps.values() if s.category == category]
+class StepRegistry:
+    """Thin compatibility wrapper around the module-level registry."""
 
-    def has(self, step_id: str) -> bool:
-        return step_id in self._steps
+    def register(self, info: StepInfo) -> None:  # noqa: D102
+        register(info)
 
-    def categories(self) -> list[str]:
-        return sorted({s.category for s in self._steps.values()})
+    def get(self, step_id: str) -> StepInfo | None:  # noqa: D102
+        return get(step_id)
 
-    @classmethod
-    def reset(cls) -> None:
-        """Reset registry (useful for testing)."""
-        if cls._instance is not None:
-            cls._instance._steps = {}
+    def list_all(self) -> list[StepInfo]:  # noqa: D102
+        return list_all()
+
+    def list_by_category(self, category: str) -> list[StepInfo]:  # noqa: D102
+        return list_by_category(category)
+
+    def has(self, step_id: str) -> bool:  # noqa: D102
+        return has(step_id)
+
+    def categories(self) -> list[str]:  # noqa: D102
+        return categories()
+
+    @staticmethod
+    def reset() -> None:  # noqa: D102
+        reset()

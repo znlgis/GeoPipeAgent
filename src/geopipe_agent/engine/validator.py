@@ -6,7 +6,7 @@ import re
 
 from geopipe_agent.errors import PipelineValidationError
 from geopipe_agent.models.pipeline import PipelineDefinition
-from geopipe_agent.steps.registry import StepRegistry
+from geopipe_agent.steps import registry
 
 # step_id must match: lowercase letters, digits, underscore, hyphen
 _VALID_STEP_ID = re.compile(r"^[a-z0-9_-]+$")
@@ -19,7 +19,6 @@ def validate_pipeline(pipeline: PipelineDefinition) -> list[str]:
     Raises PipelineValidationError for fatal issues.
     """
     warnings: list[str] = []
-    registry = StepRegistry()
     seen_ids: set[str] = set()
     available_outputs: set[str] = set()
 
@@ -106,14 +105,10 @@ def _validate_value_refs(
     if not isinstance(value, str):
         return
 
-    # Step reference
+    # Step reference: $step_id or $step_id.attr
     if value.startswith("$") and not value.startswith("${"):
         ref_body = value[1:]
-        if "." not in ref_body:
-            raise PipelineValidationError(
-                f"Step '{step_id}', param '{key}': invalid reference '{value}'. "
-                f"Expected format: $other_step_id.attribute"
-            )
+        # Support both $step_id (shorthand for .output) and $step_id.attr
         ref_step_id = ref_body.split(".")[0]
         if ref_step_id not in available_outputs:
             raise PipelineValidationError(

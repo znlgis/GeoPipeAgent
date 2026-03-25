@@ -16,7 +16,6 @@ dependencies = [
     "shapely>=2.0",
     "fiona>=1.9",
     "rasterio>=1.3",
-    "jsonschema>=4.0",
 ]
 
 [project.optional-dependencies]
