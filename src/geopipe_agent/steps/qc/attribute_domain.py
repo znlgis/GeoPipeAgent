@@ -6,7 +6,7 @@ import re
 
 import pandas as pd
 
-from geopipe_agent.steps.decorators import step
+from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
 from geopipe_agent.models.result import StepResult
 from geopipe_agent.models.qc import QcIssue

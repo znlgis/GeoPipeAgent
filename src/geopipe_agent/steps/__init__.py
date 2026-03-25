@@ -8,7 +8,6 @@ from pathlib import Path
 
 from geopipe_agent.steps.registry import (
     StepInfo,
-    StepRegistry,
     step,
     register,
     get,
@@ -19,7 +18,7 @@ from geopipe_agent.steps.registry import (
     reset,
 )
 
-_SKIP_MODULES = {"decorators", "registry"}
+_SKIP_MODULES = {"registry"}
 
 
 def _iter_step_modules():
@@ -59,7 +58,6 @@ def reload_builtin_steps() -> None:
 
 __all__ = [
     "StepInfo",
-    "StepRegistry",
     "step",
     "register",
     "get",

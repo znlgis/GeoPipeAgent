@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from geopipe_agent.steps.decorators import step
+from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
 from geopipe_agent.models.result import StepResult
 

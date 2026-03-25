@@ -66,9 +66,9 @@ class TestRetryLogic:
                 raise RuntimeError("Transient error")
             return StepResult(output="ok")
 
-        from geopipe_agent.steps.registry import StepRegistry, StepInfo
+        from geopipe_agent.steps.registry import StepInfo
+        from geopipe_agent.steps import registry
 
-        registry = StepRegistry()
         # Register a flaky test step
         info = StepInfo(
             id="test.flaky",
@@ -103,10 +103,10 @@ class TestRetryLogic:
         def always_fail_step(ctx):
             raise RuntimeError("Permanent error")
 
-        from geopipe_agent.steps.registry import StepRegistry, StepInfo
+        from geopipe_agent.steps.registry import StepInfo
         from geopipe_agent.errors import StepExecutionError
+        from geopipe_agent.steps import registry
 
-        registry = StepRegistry()
         info = StepInfo(
             id="test.always_fail",
             func=always_fail_step,

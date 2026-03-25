@@ -126,35 +126,3 @@ def step(
         return func
 
     return decorator
-
-
-# ---------------------------------------------------------------------------
-# Backward-compatible wrapper so existing ``StepRegistry()`` calls keep working
-# during migration. All methods delegate to the module-level functions above.
-# ---------------------------------------------------------------------------
-
-
-class StepRegistry:
-    """Thin compatibility wrapper around the module-level registry."""
-
-    def register(self, info: StepInfo) -> None:  # noqa: D102
-        register(info)
-
-    def get(self, step_id: str) -> StepInfo | None:  # noqa: D102
-        return get(step_id)
-
-    def list_all(self) -> list[StepInfo]:  # noqa: D102
-        return list_all()
-
-    def list_by_category(self, category: str) -> list[StepInfo]:  # noqa: D102
-        return list_by_category(category)
-
-    def has(self, step_id: str) -> bool:  # noqa: D102
-        return has(step_id)
-
-    def categories(self) -> list[str]:  # noqa: D102
-        return categories()
-
-    @staticmethod
-    def reset() -> None:  # noqa: D102
-        reset()

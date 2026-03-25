@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import ast
 import logging
+import re
 import time
 from typing import Any
 
@@ -17,6 +19,16 @@ from geopipe_agent.steps import registry
 logger = logging.getLogger("geopipe_agent")
 
 _MAX_RETRIES = 3
+
+# AST node types allowed in ``when`` condition expressions.
+_SAFE_CONDITION_NODES = (
+    ast.Expression, ast.Compare, ast.BoolOp, ast.UnaryOp, ast.BinOp,
+    ast.Constant, ast.Name, ast.Load,
+    ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE,
+    ast.Is, ast.IsNot, ast.In, ast.NotIn,
+    ast.And, ast.Or, ast.Not,
+    ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod,
+)
 
 
 def execute_pipeline(pipeline: PipelineDefinition) -> dict:
@@ -128,9 +140,9 @@ def _execute_step(
                     f"Available: {[s.id for s in registry.list_all()]}",
                 )
 
-            # Determine backend (IO steps don't use backends)
+            # Determine backend (only steps that declare backends need one)
             backend = None
-            if step_info.category not in ("io",):
+            if step_info.backends:
                 backend = backend_manager.get(step_def.backend)
 
             # Build step context and execute
@@ -199,9 +211,6 @@ def _evaluate_condition(condition: str, context: PipelineContext) -> bool:
     expressions are evaluated — no function calls, attribute access,
     or other potentially dangerous constructs.
     """
-    import ast
-    import re
-
     resolved = condition
 
     # Replace ${var} placeholders
@@ -237,14 +246,7 @@ def _evaluate_condition(condition: str, context: PipelineContext) -> bool:
         )
         return False
 
-    _SAFE_NODES = (
-        ast.Expression, ast.Compare, ast.BoolOp, ast.UnaryOp, ast.BinOp,
-        ast.Constant, ast.Name, ast.Load,
-        ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE,
-        ast.Is, ast.IsNot, ast.In, ast.NotIn,
-        ast.And, ast.Or, ast.Not,
-        ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod,
-    )
+    _SAFE_NODES = _SAFE_CONDITION_NODES
     for node in ast.walk(tree):
         if not isinstance(node, _SAFE_NODES):
             logger.warning(

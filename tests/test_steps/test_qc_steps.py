@@ -10,7 +10,7 @@ from shapely.geometry import Point, Polygon, LineString, box
 from geopipe_agent.engine.context import StepContext, PipelineContext
 from geopipe_agent.models.result import StepResult
 from geopipe_agent.models.qc import QcIssue
-from geopipe_agent.steps.registry import StepRegistry
+from geopipe_agent.steps import registry
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +85,6 @@ class TestGeometryValidity:
 
     def test_valid_geometries(self, sample_polygons_gdf):
         ctx = _make_ctx({"input": sample_polygons_gdf})
-        registry = StepRegistry()
         step_info = registry.get("qc.geometry_validity")
         result = step_info.func(ctx)
 
@@ -105,7 +104,6 @@ class TestGeometryValidity:
             crs="EPSG:4326",
         )
         ctx = _make_ctx({"input": gdf, "severity": "error"})
-        registry = StepRegistry()
         result = registry.get("qc.geometry_validity").func(ctx)
 
         assert len(result.issues) == 1
@@ -124,7 +122,6 @@ class TestGeometryValidity:
             crs="EPSG:4326",
         )
         ctx = _make_ctx({"input": gdf})
-        registry = StepRegistry()
         result = registry.get("qc.geometry_validity").func(ctx)
 
         assert len(result.issues) == 1
@@ -138,7 +135,6 @@ class TestGeometryValidity:
             crs="EPSG:4326",
         )
         ctx = _make_ctx({"input": gdf, "auto_fix": True})
-        registry = StepRegistry()
         result = registry.get("qc.geometry_validity").func(ctx)
 
         # Issues are still reported but output is fixed
@@ -154,7 +150,6 @@ class TestGeometryValidity:
             crs="EPSG:4326",
         )
         ctx = _make_ctx({"input": gdf})
-        registry = StepRegistry()
         result = registry.get("qc.geometry_validity").func(ctx)
 
         issues_gdf = result.metadata["issues_gdf"]
@@ -173,7 +168,6 @@ class TestAttributeCompleteness:
             "input": sample_polygons_gdf,
             "required_fields": ["name"],
         })
-        registry = StepRegistry()
         result = registry.get("qc.attribute_completeness").func(ctx)
 
         assert result.issues == []
@@ -184,7 +178,6 @@ class TestAttributeCompleteness:
             "input": sample_polygons_gdf,
             "required_fields": ["name", "nonexistent"],
         })
-        registry = StepRegistry()
         result = registry.get("qc.attribute_completeness").func(ctx)
 
         assert len(result.issues) == 1
@@ -202,7 +195,6 @@ class TestAttributeCompleteness:
             "required_fields": ["name"],
             "severity": "warning",
         })
-        registry = StepRegistry()
         result = registry.get("qc.attribute_completeness").func(ctx)
 
         assert len(result.issues) == 1
@@ -219,7 +211,6 @@ class TestAttributeCompleteness:
             "required_fields": ["name"],
             "allow_empty": False,
         })
-        registry = StepRegistry()
         result = registry.get("qc.attribute_completeness").func(ctx)
 
         assert len(result.issues) == 1
@@ -236,7 +227,6 @@ class TestCrsCheck:
             "input": sample_polygons_gdf,
             "expected_crs": "EPSG:4326",
         })
-        registry = StepRegistry()
         result = registry.get("qc.crs_check").func(ctx)
 
         assert result.issues == []
@@ -246,7 +236,6 @@ class TestCrsCheck:
             "input": sample_polygons_gdf,
             "expected_crs": "EPSG:3857",
         })
-        registry = StepRegistry()
         result = registry.get("qc.crs_check").func(ctx)
 
         assert len(result.issues) == 1
@@ -259,7 +248,6 @@ class TestCrsCheck:
             crs=None,
         )
         ctx = _make_ctx({"input": gdf})
-        registry = StepRegistry()
         result = registry.get("qc.crs_check").func(ctx)
 
         assert len(result.issues) == 1
@@ -279,7 +267,6 @@ class TestValueRange:
             "min": 0,
             "max": 100,
         })
-        registry = StepRegistry()
         result = registry.get("qc.value_range").func(ctx)
 
         assert result.issues == []
@@ -290,7 +277,6 @@ class TestValueRange:
             "field": "value",
             "min": 15,
         })
-        registry = StepRegistry()
         result = registry.get("qc.value_range").func(ctx)
 
         # value=10 is below min=15
@@ -303,7 +289,6 @@ class TestValueRange:
             "field": "value",
             "max": 25,
         })
-        registry = StepRegistry()
         result = registry.get("qc.value_range").func(ctx)
 
         # value=30 exceeds max=25
@@ -316,7 +301,6 @@ class TestValueRange:
             "field": "nonexistent",
             "min": 0,
         })
-        registry = StepRegistry()
         result = registry.get("qc.value_range").func(ctx)
 
         assert len(result.issues) == 1
@@ -337,7 +321,6 @@ class TestTopology:
         ]
         gdf = gpd.GeoDataFrame(geometry=polys, crs="EPSG:4326")
         ctx = _make_ctx({"input": gdf, "rules": ["no_overlaps"], "tolerance": 0.0})
-        registry = StepRegistry()
         result = registry.get("qc.topology").func(ctx)
 
         assert result.issues == []
@@ -350,7 +333,6 @@ class TestTopology:
         ]
         gdf = gpd.GeoDataFrame(geometry=polys, crs="EPSG:4326")
         ctx = _make_ctx({"input": gdf, "rules": ["no_overlaps"], "tolerance": 0.0})
-        registry = StepRegistry()
         result = registry.get("qc.topology").func(ctx)
 
         assert len(result.issues) >= 1
@@ -365,7 +347,6 @@ class TestTopology:
         ]
         gdf = gpd.GeoDataFrame(geometry=lines, crs="EPSG:4326")
         ctx = _make_ctx({"input": gdf, "rules": ["no_dangles"]})
-        registry = StepRegistry()
         result = registry.get("qc.topology").func(ctx)
 
         # (0,0), (2,0), (5,5), (6,6) are all dangles
@@ -383,7 +364,6 @@ class TestDuplicateCheck:
             "input": sample_polygons_gdf,
             "check_geometry": True,
         })
-        registry = StepRegistry()
         result = registry.get("qc.duplicate_check").func(ctx)
 
         assert result.issues == []
@@ -396,7 +376,6 @@ class TestDuplicateCheck:
             crs="EPSG:4326",
         )
         ctx = _make_ctx({"input": gdf, "check_geometry": True})
-        registry = StepRegistry()
         result = registry.get("qc.duplicate_check").func(ctx)
 
         assert len(result.issues) == 1
@@ -413,7 +392,6 @@ class TestDuplicateCheck:
             "check_geometry": False,
             "check_fields": ["name"],
         })
-        registry = StepRegistry()
         result = registry.get("qc.duplicate_check").func(ctx)
 
         assert len(result.issues) == 1
@@ -437,7 +415,6 @@ class TestAttributeDomain:
             "field": "type",
             "allowed_values": ["A", "B", "C"],
         })
-        registry = StepRegistry()
         result = registry.get("qc.attribute_domain").func(ctx)
 
         assert result.issues == []
@@ -453,7 +430,6 @@ class TestAttributeDomain:
             "field": "type",
             "allowed_values": ["A", "B", "C"],
         })
-        registry = StepRegistry()
         result = registry.get("qc.attribute_domain").func(ctx)
 
         assert len(result.issues) == 1
@@ -470,7 +446,6 @@ class TestAttributeDomain:
             "field": "code",
             "pattern": r"[A-Z]{2}-\d{3}",
         })
-        registry = StepRegistry()
         result = registry.get("qc.attribute_domain").func(ctx)
 
         assert len(result.issues) == 1
@@ -492,7 +467,6 @@ class TestRasterNodata:
     def test_nodata_defined_and_ok(self):
         raster = self._make_raster(nodata=-9999)
         ctx = _make_ctx({"input": raster, "expected_nodata": -9999, "max_nodata_ratio": 0.5})
-        registry = StepRegistry()
         result = registry.get("qc.raster_nodata").func(ctx)
 
         assert result.issues == []
@@ -500,7 +474,6 @@ class TestRasterNodata:
     def test_nodata_not_defined(self):
         raster = self._make_raster(nodata=None)
         ctx = _make_ctx({"input": raster})
-        registry = StepRegistry()
         result = registry.get("qc.raster_nodata").func(ctx)
 
         assert len(result.issues) == 1
@@ -509,7 +482,6 @@ class TestRasterNodata:
     def test_nodata_value_mismatch(self):
         raster = self._make_raster(nodata=-9999)
         ctx = _make_ctx({"input": raster, "expected_nodata": -999})
-        registry = StepRegistry()
         result = registry.get("qc.raster_nodata").func(ctx)
 
         assert len(result.issues) >= 1
@@ -519,7 +491,6 @@ class TestRasterNodata:
         data = np.array([[-9999, -9999], [-9999, 1]], dtype=np.float32)
         raster = self._make_raster(nodata=-9999, data=data)
         ctx = _make_ctx({"input": raster, "max_nodata_ratio": 0.5})
-        registry = StepRegistry()
         result = registry.get("qc.raster_nodata").func(ctx)
 
         # 3/4 = 75% > 50%
@@ -540,7 +511,6 @@ class TestRasterValueRange:
     def test_all_in_range(self):
         raster = self._make_raster()
         ctx = _make_ctx({"input": raster, "min": -1, "max": 2})
-        registry = StepRegistry()
         result = registry.get("qc.raster_value_range").func(ctx)
 
         assert result.issues == []
@@ -548,7 +518,6 @@ class TestRasterValueRange:
     def test_below_min(self):
         raster = self._make_raster()
         ctx = _make_ctx({"input": raster, "min": 0})
-        registry = StepRegistry()
         result = registry.get("qc.raster_value_range").func(ctx)
 
         assert len(result.issues) == 1
@@ -557,7 +526,6 @@ class TestRasterValueRange:
     def test_above_max(self):
         raster = self._make_raster()
         ctx = _make_ctx({"input": raster, "max": 1.0})
-        registry = StepRegistry()
         result = registry.get("qc.raster_value_range").func(ctx)
 
         assert len(result.issues) == 1
@@ -584,7 +552,6 @@ class TestRasterResolution:
             "expected_y": 30,
             "tolerance": 0.5,
         })
-        registry = StepRegistry()
         result = registry.get("qc.raster_resolution").func(ctx)
 
         assert result.issues == []
@@ -597,7 +564,6 @@ class TestRasterResolution:
             "expected_y": 30,
             "tolerance": 0.5,
         })
-        registry = StepRegistry()
         result = registry.get("qc.raster_resolution").func(ctx)
 
         assert len(result.issues) == 2  # X and Y both wrong
@@ -609,7 +575,6 @@ class TestRasterResolution:
             "expected_x": 30,
             "expected_y": 30,
         })
-        registry = StepRegistry()
         result = registry.get("qc.raster_resolution").func(ctx)
 
         assert len(result.issues) == 1
@@ -680,7 +645,6 @@ class TestReporterQcSummary:
 class TestQcStepsRegistered:
 
     def test_all_qc_steps_in_registry(self):
-        registry = StepRegistry()
         expected_ids = [
             "qc.geometry_validity",
             "qc.topology",
@@ -697,6 +661,5 @@ class TestQcStepsRegistered:
             assert registry.has(step_id), f"Step '{step_id}' not found in registry"
 
     def test_qc_category_count(self):
-        registry = StepRegistry()
         qc_steps = registry.list_by_category("qc")
         assert len(qc_steps) == 10

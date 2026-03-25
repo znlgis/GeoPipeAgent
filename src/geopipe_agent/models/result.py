@@ -26,14 +26,17 @@ class StepResult:
         # Allow accessing stats/metadata keys as attributes for $step.key references
         if name.startswith("_"):
             raise AttributeError(name)
-        if name in self.stats:
-            return self.stats[name]
-        if name in self.metadata:
-            return self.metadata[name]
+        # Use __dict__ to avoid recursive __getattr__ calls during init/unpickling
+        stats = self.__dict__.get("stats", {})
+        metadata = self.__dict__.get("metadata", {})
+        if name in stats:
+            return stats[name]
+        if name in metadata:
+            return metadata[name]
         raise AttributeError(
             f"StepResult has no attribute '{name}'. "
-            f"Available: output, stats={list(self.stats.keys())}, "
-            f"metadata={list(self.metadata.keys())}"
+            f"Available: output, stats={list(stats.keys())}, "
+            f"metadata={list(metadata.keys())}"
         )
 
     def summary(self) -> dict:

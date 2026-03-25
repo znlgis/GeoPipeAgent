@@ -1,6 +1,6 @@
 """GeoPipeAgent — AI-Native GIS Analysis Pipeline Framework."""
 
-from geopipe_agent.steps.registry import step, StepRegistry, StepInfo
+from geopipe_agent.steps.registry import step, StepInfo
 from geopipe_agent.engine.context import StepContext
 from geopipe_agent.models.result import StepResult
 from geopipe_agent.models.qc import QcIssue
@@ -14,7 +14,6 @@ _load_builtin_steps()
 
 __all__ = [
     "step",
-    "StepRegistry",
     "StepInfo",
     "StepContext",
     "StepResult",

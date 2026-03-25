@@ -38,8 +38,8 @@ def _load_yaml(source: str | Path) -> dict:
             data = yaml.safe_load(source)
     except yaml.YAMLError as e:
         raise PipelineParseError(f"Invalid YAML: {e}") from e
-    except Exception as e:
-        # Try parsing as raw YAML string
+    except (OSError, TypeError) as e:
+        # Path constructor or file access failed; treat source as raw YAML string
         try:
             data = yaml.safe_load(str(source))
         except yaml.YAMLError as e2:
