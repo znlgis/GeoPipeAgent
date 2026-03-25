@@ -6,6 +6,7 @@ from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
 from geopipe_agent.models.result import StepResult
 from geopipe_agent.models.qc import QcIssue
+from geopipe_agent.steps.qc._helpers import make_vector_qc_result
 
 
 @step(
@@ -76,24 +77,10 @@ def qc_duplicate_check(ctx: StepContext) -> StepResult:
     if check_fields:
         issues.extend(_check_attribute_duplicates(gdf, check_fields, severity))
 
-    issue_indices = sorted({
-        i.feature_index for i in issues if i.feature_index is not None
-    })
-    issues_gdf = gdf.iloc[issue_indices].copy() if issue_indices else gdf.iloc[0:0].copy()
-
-    stats = {
-        "total_features": len(gdf),
-        "issues_count": len(issues),
+    return make_vector_qc_result(gdf, issues, {
         "check_geometry": check_geometry,
         "check_fields": check_fields,
-    }
-
-    return StepResult(
-        output=gdf,
-        stats=stats,
-        metadata={"issues_gdf": issues_gdf},
-        issues=issues,
-    )
+    })
 
 
 def _check_geometry_duplicates(gdf, tolerance: float, severity: str) -> list[QcIssue]:

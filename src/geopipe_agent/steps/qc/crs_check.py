@@ -6,6 +6,7 @@ from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
 from geopipe_agent.models.result import StepResult
 from geopipe_agent.models.qc import QcIssue
+from geopipe_agent.steps.qc._helpers import make_vector_qc_result
 
 
 @step(
@@ -78,19 +79,7 @@ def qc_crs_check(ctx: StepContext) -> StepResult:
                 },
             ))
 
-    # CRS issues are dataset-level (no per-feature indices), so issues_gdf is empty
-    issues_gdf = gdf.iloc[0:0].copy()
-
-    stats = {
-        "total_features": len(gdf),
-        "issues_count": len(issues),
+    return make_vector_qc_result(gdf, issues, {
         "actual_crs": str(actual_crs) if actual_crs else None,
         "expected_crs": expected_crs_str,
-    }
-
-    return StepResult(
-        output=gdf,
-        stats=stats,
-        metadata={"issues_gdf": issues_gdf},
-        issues=issues,
-    )
+    })

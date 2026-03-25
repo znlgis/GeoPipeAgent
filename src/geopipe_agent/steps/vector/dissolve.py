@@ -33,7 +33,7 @@ from geopipe_agent.models.result import StepResult
     outputs={
         "output": {"type": "geodataframe", "description": "融合结果"},
     },
-    backends=["gdal_python"],
+    backends=["geopandas"],
     examples=[
         {
             "description": "按类型字段融合",

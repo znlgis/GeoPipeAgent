@@ -6,6 +6,7 @@ from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
 from geopipe_agent.models.result import StepResult
 from geopipe_agent.models.qc import QcIssue
+from geopipe_agent.steps.qc._helpers import make_vector_qc_result
 
 
 @step(
@@ -72,23 +73,7 @@ def qc_topology(ctx: StepContext) -> StepResult:
     if "no_dangles" in rules:
         issues.extend(_check_no_dangles(gdf, severity))
 
-    issue_indices = sorted({
-        i.feature_index for i in issues if i.feature_index is not None
-    })
-    issues_gdf = gdf.iloc[issue_indices].copy() if issue_indices else gdf.iloc[0:0].copy()
-
-    stats = {
-        "total_features": len(gdf),
-        "issues_count": len(issues),
-        "rules_checked": rules,
-    }
-
-    return StepResult(
-        output=gdf,
-        stats=stats,
-        metadata={"issues_gdf": issues_gdf},
-        issues=issues,
-    )
+    return make_vector_qc_result(gdf, issues, {"rules_checked": rules})
 
 
 def _check_no_overlaps(gdf, tolerance: float, severity: str) -> list[QcIssue]:

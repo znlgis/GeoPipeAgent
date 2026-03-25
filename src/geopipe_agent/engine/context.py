@@ -105,13 +105,16 @@ class PipelineContext:
         """Resolve all values in a params dict."""
         resolved = {}
         for key, value in params.items():
-            if isinstance(value, dict):
-                resolved[key] = self.resolve_params(value)
-            elif isinstance(value, list):
-                resolved[key] = [self.resolve(v) for v in value]
-            else:
-                resolved[key] = self.resolve(value)
+            resolved[key] = self._resolve_value(value)
         return resolved
+
+    def _resolve_value(self, value: Any) -> Any:
+        """Recursively resolve a single value (dict, list, or scalar)."""
+        if isinstance(value, dict):
+            return {k: self._resolve_value(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [self._resolve_value(v) for v in value]
+        return self.resolve(value)
 
 
 class StepContext:

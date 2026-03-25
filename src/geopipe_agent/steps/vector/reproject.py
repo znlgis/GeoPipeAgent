@@ -27,7 +27,7 @@ from geopipe_agent.models.result import StepResult
     outputs={
         "output": {"type": "geodataframe", "description": "转换后的矢量数据"},
     },
-    backends=["gdal_python", "qgis_process"],
+    backends=["geopandas", "qgis_process"],
     examples=[
         {
             "description": "转换到 Web Mercator",

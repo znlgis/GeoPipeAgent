@@ -1,4 +1,4 @@
-"""GDAL Python backend — default backend using GeoPandas/Shapely."""
+"""GeoPandas backend — default backend using GeoPandas/Shapely."""
 
 from __future__ import annotations
 
@@ -7,11 +7,11 @@ from typing import Any
 from geopipe_agent.backends.base import GeoBackend
 
 
-class GdalPythonBackend(GeoBackend):
-    """Backend using GDAL/OGR Python bindings via GeoPandas + Shapely."""
+class GeoPandasBackend(GeoBackend):
+    """Backend using GeoPandas + Shapely for in-process vector operations."""
 
     def name(self) -> str:
-        return "gdal_python"
+        return "geopandas"
 
     def is_available(self) -> bool:
         try:
@@ -22,8 +22,6 @@ class GdalPythonBackend(GeoBackend):
             return False
 
     def buffer(self, gdf: Any, distance: float, **kwargs) -> Any:
-        import geopandas as gpd
-
         cap_style = kwargs.get("cap_style", "round")
         cap_map = {"round": 1, "flat": 2, "square": 3}
         cap = cap_map.get(cap_style, 1)
@@ -57,3 +55,7 @@ class GdalPythonBackend(GeoBackend):
         import geopandas as gpd
 
         return gpd.overlay(gdf1, gdf2, how=how)
+
+
+# Backward compatibility alias
+GdalPythonBackend = GeoPandasBackend

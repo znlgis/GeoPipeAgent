@@ -35,7 +35,7 @@ from geopipe_agent.models.result import StepResult
         "output": {"type": "geodataframe", "description": "缓冲区结果"},
         "stats": {"type": "dict", "description": "统计信息"},
     },
-    backends=["gdal_python", "qgis_process"],
+    backends=["geopandas", "qgis_process"],
     examples=[
         {
             "description": "500米道路缓冲区",

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from geopipe_agent.backends.base import GeoBackend
-from geopipe_agent.backends.gdal_python import GdalPythonBackend
+from geopipe_agent.backends.gdal_python import GeoPandasBackend, GdalPythonBackend
 from geopipe_agent.backends.gdal_cli import GdalCliBackend
 from geopipe_agent.backends.qgis_process import QgisProcessBackend
 from geopipe_agent.errors import BackendNotAvailableError
@@ -17,7 +17,7 @@ class BackendManager:
         self._detect_available()
 
     def _detect_available(self) -> None:
-        for backend_cls in [GdalPythonBackend, GdalCliBackend, QgisProcessBackend]:
+        for backend_cls in [GeoPandasBackend, GdalCliBackend, QgisProcessBackend]:
             backend = backend_cls()
             if backend.is_available():
                 self.backends.append(backend)
@@ -30,8 +30,10 @@ class BackendManager:
                 preferred backend is not found.
         """
         if preferred:
+            # Support legacy name "gdal_python" as alias for "geopandas"
+            normalized = "geopandas" if preferred == "gdal_python" else preferred
             for b in self.backends:
-                if b.name() == preferred:
+                if b.name() == normalized:
                     return b
             raise BackendNotAvailableError(
                 f"Backend '{preferred}' is not available. "
@@ -39,7 +41,7 @@ class BackendManager:
             )
         if not self.backends:
             raise BackendNotAvailableError(
-                "No GIS backends available. Install geopandas+shapely (gdal_python), "
+                "No GIS backends available. Install geopandas+shapely (geopandas), "
                 "GDAL CLI tools (gdal_cli), or qgis_process."
             )
         return self.backends[0]
@@ -51,6 +53,7 @@ class BackendManager:
 
 __all__ = [
     "GeoBackend",
+    "GeoPandasBackend",
     "GdalPythonBackend",
     "GdalCliBackend",
     "QgisProcessBackend",

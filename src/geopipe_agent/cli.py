@@ -186,9 +186,9 @@ def info(file: str):
 @main.command()
 def backends():
     """List available GIS backends and their status."""
-    from geopipe_agent.backends import GdalPythonBackend, GdalCliBackend, QgisProcessBackend
+    from geopipe_agent.backends import GeoPandasBackend, GdalCliBackend, QgisProcessBackend
 
-    all_backends = [GdalPythonBackend(), GdalCliBackend(), QgisProcessBackend()]
+    all_backends = [GeoPandasBackend(), GdalCliBackend(), QgisProcessBackend()]
     full_list = []
     for b in all_backends:
         full_list.append({"name": b.name(), "available": b.is_available()})

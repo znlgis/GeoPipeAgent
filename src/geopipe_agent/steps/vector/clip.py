@@ -27,7 +27,7 @@ from geopipe_agent.models.result import StepResult
     outputs={
         "output": {"type": "geodataframe", "description": "裁剪结果"},
     },
-    backends=["gdal_python", "qgis_process"],
+    backends=["geopandas", "qgis_process"],
     examples=[
         {
             "description": "裁剪道路数据到研究区范围",

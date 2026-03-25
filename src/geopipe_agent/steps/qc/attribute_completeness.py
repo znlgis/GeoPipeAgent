@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import pandas as pd
-
 from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
 from geopipe_agent.models.result import StepResult
 from geopipe_agent.models.qc import QcIssue
+from geopipe_agent.steps.qc._helpers import make_vector_qc_result, is_null
 
 
 @step(
@@ -79,7 +78,7 @@ def qc_attribute_completeness(ctx: StepContext) -> StepResult:
     for col in existing_required:
         for idx, value in gdf[col].items():
             is_missing = False
-            if value is None or (isinstance(value, float) and pd.isna(value)):
+            if is_null(value):
                 is_missing = True
             elif not allow_empty and isinstance(value, str) and value.strip() == "":
                 is_missing = True
@@ -93,22 +92,7 @@ def qc_attribute_completeness(ctx: StepContext) -> StepResult:
                     details={"field": col},
                 ))
 
-    # Build issues GeoDataFrame subset
-    issue_indices = sorted({
-        i.feature_index for i in issues if i.feature_index is not None
-    })
-    issues_gdf = gdf.iloc[issue_indices].copy() if issue_indices else gdf.iloc[0:0].copy()
-
-    stats = {
-        "total_features": len(gdf),
-        "issues_count": len(issues),
+    return make_vector_qc_result(gdf, issues, {
         "checked_fields": required_fields,
         "missing_columns": missing_columns,
-    }
-
-    return StepResult(
-        output=gdf,
-        stats=stats,
-        metadata={"issues_gdf": issues_gdf},
-        issues=issues,
-    )
+    })

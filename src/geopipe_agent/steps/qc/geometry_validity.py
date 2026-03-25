@@ -6,6 +6,7 @@ from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
 from geopipe_agent.models.result import StepResult
 from geopipe_agent.models.qc import QcIssue
+from geopipe_agent.steps.qc._helpers import build_issues_gdf
 
 
 @step(
@@ -78,10 +79,6 @@ def qc_geometry_validity(ctx: StepContext) -> StepResult:
         output_gdf = gdf.copy()
         output_gdf.geometry = output_gdf.geometry.buffer(0)
 
-    # Build issues GeoDataFrame subset
-    issue_indices = [i.feature_index for i in issues if i.feature_index is not None]
-    issues_gdf = gdf.iloc[issue_indices].copy() if issue_indices else gdf.iloc[0:0].copy()
-
     stats = {
         "total_features": len(gdf),
         "issues_count": len(issues),
@@ -91,6 +88,6 @@ def qc_geometry_validity(ctx: StepContext) -> StepResult:
     return StepResult(
         output=output_gdf,
         stats=stats,
-        metadata={"issues_gdf": issues_gdf},
+        metadata={"issues_gdf": build_issues_gdf(gdf, issues)},
         issues=issues,
     )

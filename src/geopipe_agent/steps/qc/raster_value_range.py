@@ -6,6 +6,7 @@ from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
 from geopipe_agent.models.result import StepResult
 from geopipe_agent.models.qc import QcIssue
+from geopipe_agent.steps.qc._helpers import make_raster_qc_result
 
 
 @step(
@@ -136,12 +137,9 @@ def qc_raster_value_range(ctx: StepContext) -> StepResult:
             },
         ))
 
-    stats = {
-        "issues_count": len(issues),
+    return make_raster_qc_result(raster, issues, {
         "band": band,
         "valid_pixels": int(valid_data.size),
         "actual_min": actual_min,
         "actual_max": actual_max,
-    }
-
-    return StepResult(output=raster, stats=stats, issues=issues)
+    })

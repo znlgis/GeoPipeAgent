@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import pandas as pd
-
 from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
 from geopipe_agent.models.result import StepResult
 from geopipe_agent.models.qc import QcIssue
+from geopipe_agent.steps.qc._helpers import make_vector_qc_result, is_null, field_missing_issue
 
 
 @step(
@@ -70,16 +69,10 @@ def qc_value_range(ctx: StepContext) -> StepResult:
     issues: list[QcIssue] = []
 
     if field_name not in gdf.columns:
-        issues.append(QcIssue(
-            rule_id="value_range",
-            severity=severity,
-            feature_index=None,
-            message=f"Field '{field_name}' does not exist in the dataset",
-            details={"field": field_name},
-        ))
+        issues.append(field_missing_issue(field_name, severity, "value_range"))
     else:
         for idx, value in gdf[field_name].items():
-            if value is None or (isinstance(value, float) and pd.isna(value)):
+            if is_null(value):
                 continue  # skip null values (attribute_completeness handles these)
 
             if min_val is not None and value < min_val:
@@ -99,23 +92,8 @@ def qc_value_range(ctx: StepContext) -> StepResult:
                     details={"field": field_name, "value": value, "max": max_val},
                 ))
 
-    # Build issues GeoDataFrame subset
-    issue_indices = sorted({
-        i.feature_index for i in issues if i.feature_index is not None
-    })
-    issues_gdf = gdf.iloc[issue_indices].copy() if issue_indices else gdf.iloc[0:0].copy()
-
-    stats = {
-        "total_features": len(gdf),
-        "issues_count": len(issues),
+    return make_vector_qc_result(gdf, issues, {
         "field": field_name,
         "min_threshold": min_val,
         "max_threshold": max_val,
-    }
-
-    return StepResult(
-        output=gdf,
-        stats=stats,
-        metadata={"issues_gdf": issues_gdf},
-        issues=issues,
-    )
+    })

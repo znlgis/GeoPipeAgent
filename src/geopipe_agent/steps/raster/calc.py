@@ -42,6 +42,8 @@ def raster_calc(ctx: StepContext) -> StepResult:
     import numpy as np
     import re
 
+    from geopipe_agent.utils.safe_eval import validate_calc_ast
+
     raster = ctx.input("input")
     expression = ctx.param("expression")
 
@@ -68,56 +70,7 @@ def raster_calc(ctx: StepContext) -> StepResult:
     except SyntaxError as exc:
         raise ValueError(f"Invalid expression syntax: {exc}") from exc
 
-    _SAFE_NODES = (
-        ast.Expression, ast.BinOp, ast.UnaryOp, ast.Compare, ast.BoolOp,
-        ast.Constant, ast.Name, ast.Load,
-        # Arithmetic operators
-        ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod, ast.Pow,
-        ast.USub, ast.UAdd,
-        # Comparison operators (for masking)
-        ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE,
-        ast.And, ast.Or, ast.Not,
-        # Function calls restricted to np.* below
-        ast.Call, ast.Attribute,
-    )
-    _SAFE_NP_FUNCS = {
-        "abs", "sqrt", "log", "log2", "log10", "exp",
-        "sin", "cos", "tan", "arcsin", "arccos", "arctan",
-        "minimum", "maximum", "where", "clip", "nan_to_num",
-    }
-
-    for node in ast.walk(tree):
-        if not isinstance(node, _SAFE_NODES):
-            raise ValueError(
-                f"Expression contains disallowed construct: {type(node).__name__}. "
-                "Only numeric/band operations and np.* math functions are allowed."
-            )
-        # Validate function calls: only np.<safe_func> allowed
-        if isinstance(node, ast.Call):
-            func = node.func
-            if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
-                if func.value.id == "np" and func.attr in _SAFE_NP_FUNCS:
-                    continue
-            if isinstance(func, ast.Name) and func.id in available:
-                continue  # band name used in expression context
-            raise ValueError(
-                f"Expression contains disallowed function call. "
-                f"Only np.{{{', '.join(sorted(_SAFE_NP_FUNCS))}}} are allowed."
-            )
-        # Validate attribute access: only np.<attr> allowed
-        if isinstance(node, ast.Attribute):
-            if isinstance(node.value, ast.Name) and node.value.id == "np":
-                continue
-            raise ValueError(
-                "Expression contains disallowed attribute access. "
-                "Only np.* attributes are allowed."
-            )
-        # Validate Name nodes: must be band references or 'np'
-        if isinstance(node, ast.Name) and node.id not in available and node.id != "np":
-            raise ValueError(
-                f"Expression references unknown name '{node.id}'. "
-                f"Allowed: {sorted(available)} and np.*"
-            )
+    validate_calc_ast(tree, available)
 
     # Safe evaluation with numpy functions
     safe_ns = {"__builtins__": {}, "np": np}

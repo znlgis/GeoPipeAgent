@@ -5,7 +5,7 @@ import geopandas as gpd
 from shapely.geometry import Point, Polygon
 
 from geopipe_agent.engine.context import StepContext
-from geopipe_agent.backends.gdal_python import GdalPythonBackend
+from geopipe_agent.backends.gdal_python import GeoPandasBackend
 from geopipe_agent.models.result import StepResult
 
 
@@ -13,7 +13,7 @@ class TestVectorBuffer:
     def test_buffer(self, sample_points_gdf):
         from geopipe_agent.steps.vector.buffer import vector_buffer
 
-        backend = GdalPythonBackend()
+        backend = GeoPandasBackend()
         ctx = StepContext(
             params={"input": sample_points_gdf, "distance": 0.1, "cap_style": "round"},
             backend=backend,
@@ -31,7 +31,7 @@ class TestVectorClip:
     def test_clip(self, sample_polygons_gdf, sample_clip_gdf):
         from geopipe_agent.steps.vector.clip import vector_clip
 
-        backend = GdalPythonBackend()
+        backend = GeoPandasBackend()
         ctx = StepContext(
             params={
                 "input": sample_polygons_gdf,
@@ -48,7 +48,7 @@ class TestVectorReproject:
     def test_reproject(self, sample_points_gdf):
         from geopipe_agent.steps.vector.reproject import vector_reproject
 
-        backend = GdalPythonBackend()
+        backend = GeoPandasBackend()
         ctx = StepContext(
             params={"input": sample_points_gdf, "target_crs": "EPSG:3857"},
             backend=backend,
@@ -63,7 +63,7 @@ class TestVectorDissolve:
     def test_dissolve(self, sample_polygons_gdf):
         from geopipe_agent.steps.vector.dissolve import vector_dissolve
 
-        backend = GdalPythonBackend()
+        backend = GeoPandasBackend()
         ctx = StepContext(
             params={"input": sample_polygons_gdf},
             backend=backend,
@@ -77,7 +77,7 @@ class TestVectorSimplify:
     def test_simplify(self, sample_polygons_gdf):
         from geopipe_agent.steps.vector.simplify import vector_simplify
 
-        backend = GdalPythonBackend()
+        backend = GeoPandasBackend()
         ctx = StepContext(
             params={"input": sample_polygons_gdf, "tolerance": 0.01},
             backend=backend,
@@ -104,7 +104,7 @@ class TestVectorOverlay:
     def test_overlay_intersection(self, sample_polygons_gdf, sample_clip_gdf):
         from geopipe_agent.steps.vector.overlay import vector_overlay
 
-        backend = GdalPythonBackend()
+        backend = GeoPandasBackend()
         ctx = StepContext(
             params={
                 "input": sample_polygons_gdf,

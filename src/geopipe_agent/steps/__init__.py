@@ -18,7 +18,7 @@ from geopipe_agent.steps.registry import (
     reset,
 )
 
-_SKIP_MODULES = {"registry"}
+_SKIP_MODULES = {"registry", "_helpers"}
 
 
 def _iter_step_modules():

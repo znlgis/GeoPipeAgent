@@ -59,9 +59,14 @@ class GdalCliBackend(GeoBackend):
                 "ogr2ogr", "-f", "GeoJSON", dst, src,
                 "-dialect", "sqlite",
                 "-sql",
-                f'SELECT ST_Buffer(geometry, {safe_distance}) AS geometry, * FROM "{layer}"',
+                f'SELECT ST_Buffer(geometry, {safe_distance}) AS geometry FROM "{layer}"',
             ])
-            return read_gdf(dst)
+            result = read_gdf(dst)
+            # Restore non-geometry columns from original data
+            for col in gdf.columns:
+                if col != "geometry":
+                    result[col] = gdf[col].values[:len(result)]
+            return result
 
     def clip(self, input_gdf: Any, clip_gdf: Any, **kwargs) -> Any:
         with tmp_io(input_gdf, clip_gdf) as (src, clip_src, dst):
@@ -124,12 +129,13 @@ class GdalCliBackend(GeoBackend):
             layer1 = self._layer_name(src1)
             layer2 = self._layer_name(src2)
             sql = (
-                f'{func}(a.geometry, b.geometry) AS geometry '
-                f'FROM "{layer1}" a, "{layer2}" b'
+                f'SELECT {func}(a.geometry, b.geometry) AS geometry '
+                f'FROM "{layer1}" a, "{layer2}" b '
+                f'WHERE ST_Intersects(a.geometry, b.geometry)'
             )
             self._run([
                 "ogr2ogr", "-f", "GeoJSON", dst, src1,
                 "-dialect", "sqlite",
-                "-sql", f"SELECT {sql}",
+                "-sql", sql,
             ])
             return read_gdf(dst)

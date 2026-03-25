@@ -91,9 +91,10 @@ pipeline:
       params:                      # Step-specific parameters
         key: value
       on_error: fail               # Optional: fail/skip/retry (default: fail)
-      backend: gdal_python         # Optional: specific backend to use
-  outputs:                         # Optional: pipeline output declarations
-    result: "$step_id.output"
+      when: "$step_id.issues_count > 0"  # Optional: conditional execution
+      backend: geopandas           # Optional: specific backend to use
+   outputs:                         # Optional: pipeline output declarations
+     result: "$step_id.output"
 ```
 
 ## Reference Syntax
@@ -112,12 +113,31 @@ pipeline:
 - No dots (`.`) — dots are reserved for attribute access in references
 - Must be unique within a pipeline
 
+## Conditional Execution (``when``)
+
+Steps can include a ``when`` expression to control execution:
+
+```yaml
+- id: fix-geometries
+  use: qc.geometry_validity
+  params:
+    input: "$data"
+    auto_fix: true
+  when: "$check.issues_count > 0"
+```
+
+Supported syntax:
+- Comparisons: ``$step.attr == value``, ``!=``, ``>``, ``<``, ``>=``, ``<=``
+- Boolean operators: ``and``, ``or``, ``not``
+- Variable substitution: ``${var_name}``
+- Truthy check: ``$step_id.output`` (true if output is non-empty)
+
 ## Error Handling
 
 Each step can specify `on_error`:
 - `fail` (default): Stop pipeline execution
 - `skip`: Skip this step, continue with next
-- `retry`: Retry the step (v1 placeholder)
+- `retry`: Retry the step up to 3 times with backoff
 """
 
 

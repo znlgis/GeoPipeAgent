@@ -44,7 +44,6 @@ def analysis_heatmap(ctx: StepContext) -> StepResult:
     import numpy as np
     from scipy.ndimage import gaussian_filter
     from rasterio.transform import from_bounds
-    from rasterio.crs import CRS
 
     gdf = ctx.input("input")
     resolution = ctx.param("resolution", 100)

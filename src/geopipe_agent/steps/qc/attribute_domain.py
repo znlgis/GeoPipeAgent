@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import re
 
-import pandas as pd
-
 from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
 from geopipe_agent.models.result import StepResult
 from geopipe_agent.models.qc import QcIssue
+from geopipe_agent.steps.qc._helpers import make_vector_qc_result, is_null, field_missing_issue
 
 
 @step(
@@ -71,18 +70,12 @@ def qc_attribute_domain(ctx: StepContext) -> StepResult:
     issues: list[QcIssue] = []
 
     if field_name not in gdf.columns:
-        issues.append(QcIssue(
-            rule_id="attribute_domain",
-            severity=severity,
-            feature_index=None,
-            message=f"Field '{field_name}' does not exist in the dataset",
-            details={"field": field_name},
-        ))
+        issues.append(field_missing_issue(field_name, severity, "attribute_domain"))
     else:
         compiled_pattern = re.compile(pattern_str) if pattern_str else None
 
         for idx, value in gdf[field_name].items():
-            if value is None or (isinstance(value, float) and pd.isna(value)):
+            if is_null(value):
                 continue  # skip nulls
 
             violation = False
@@ -108,22 +101,8 @@ def qc_attribute_domain(ctx: StepContext) -> StepResult:
                     details={"field": field_name, "value": value},
                 ))
 
-    issue_indices = sorted({
-        i.feature_index for i in issues if i.feature_index is not None
-    })
-    issues_gdf = gdf.iloc[issue_indices].copy() if issue_indices else gdf.iloc[0:0].copy()
-
-    stats = {
-        "total_features": len(gdf),
-        "issues_count": len(issues),
+    return make_vector_qc_result(gdf, issues, {
         "field": field_name,
         "allowed_values": allowed_values,
         "pattern": pattern_str,
-    }
-
-    return StepResult(
-        output=gdf,
-        stats=stats,
-        metadata={"issues_gdf": issues_gdf},
-        issues=issues,
-    )
+    })

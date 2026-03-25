@@ -50,10 +50,8 @@ from geopipe_agent.models.result import StepResult
 )
 def network_shortest_path(ctx: StepContext) -> StepResult:
     import networkx as nx
-    import numpy as np
     import geopandas as gpd
     from shapely.geometry import LineString, Point
-    from shapely.ops import nearest_points
 
     gdf = ctx.input("input")
     origin = ctx.param("origin")
@@ -84,7 +82,6 @@ def network_shortest_path(ctx: StepContext) -> StepResult:
 
     # Find nearest nodes to origin and destination
     nodes = list(G.nodes)
-    node_points = [Point(n) for n in nodes]
 
     origin_pt = Point(origin)
     dest_pt = Point(destination)

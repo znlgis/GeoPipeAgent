@@ -1,19 +1,19 @@
-"""Tests for GdalPythonBackend."""
+"""Tests for GeoPandasBackend."""
 
 import pytest
 import geopandas as gpd
 from shapely.geometry import Point, Polygon
 
-from geopipe_agent.backends.gdal_python import GdalPythonBackend
+from geopipe_agent.backends.gdal_python import GeoPandasBackend
 
 
-class TestGdalPythonBackend:
+class TestGeoPandasBackend:
     @pytest.fixture
     def backend(self):
-        return GdalPythonBackend()
+        return GeoPandasBackend()
 
     def test_name(self, backend):
-        assert backend.name() == "gdal_python"
+        assert backend.name() == "geopandas"
 
     def test_is_available(self, backend):
         assert backend.is_available()

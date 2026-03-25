@@ -15,20 +15,11 @@ from geopipe_agent.errors import StepExecutionError
 from geopipe_agent.models.pipeline import PipelineDefinition
 from geopipe_agent.models.result import StepResult
 from geopipe_agent.steps import registry
+from geopipe_agent.utils.safe_eval import validate_condition_ast
 
 logger = logging.getLogger("geopipe_agent")
 
 _MAX_RETRIES = 3
-
-# AST node types allowed in ``when`` condition expressions.
-_SAFE_CONDITION_NODES = (
-    ast.Expression, ast.Compare, ast.BoolOp, ast.UnaryOp, ast.BinOp,
-    ast.Constant, ast.Name, ast.Load,
-    ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE,
-    ast.Is, ast.IsNot, ast.In, ast.NotIn,
-    ast.And, ast.Or, ast.Not,
-    ast.Add, ast.Sub, ast.Mult, ast.Div, ast.FloorDiv, ast.Mod,
-)
 
 
 def execute_pipeline(pipeline: PipelineDefinition) -> dict:
@@ -140,6 +131,9 @@ def _execute_step(
                     f"Available: {[s.id for s in registry.list_all()]}",
                 )
 
+            # Validate required params
+            _validate_step_params(step_def.id, resolved_params, step_info)
+
             # Determine backend (only steps that declare backends need one)
             backend = None
             if step_info.backends:
@@ -190,13 +184,74 @@ def _execute_step(
 def _suggest_fix(step_use: str, error: Exception) -> str | None:
     """Generate an AI-friendly fix suggestion based on the error."""
     msg = str(error).lower()
+
+    # CRS-related errors
     if "crs" in msg and ("mismatch" in msg or "degree" in msg):
         return "Add a vector.reproject step before this step to convert to a projected CRS."
+    if "crs" in msg and "none" in msg:
+        return "The input data has no CRS. Set it with vector.reproject or ensure the source file has CRS metadata."
+
+    # File I/O errors
     if "file not found" in msg or "no such file" in msg:
         return "Check that the input file path is correct and the file exists."
     if "permission" in msg:
         return "Check file permissions for the input/output paths."
+    if "driver" in msg or "unsupported" in msg and "format" in msg:
+        return "Check the file format. Supported vector formats: GeoJSON, Shapefile, GPKG. Supported raster: GeoTIFF."
+
+    # Geometry errors
+    if "self-intersection" in msg or "invalid geometry" in msg:
+        return "Add a qc.geometry_validity step with auto_fix=true before this step."
+    if "empty geometry" in msg:
+        return "Filter out features with empty geometries using vector.query before this step."
+
+    # Data type errors
+    if "keyerror" in msg or "column" in msg and "not found" in msg:
+        return "Check that the referenced column/field name exists in the input data. Use io.read_vector stats to see available columns."
+    if "could not convert" in msg or "dtype" in msg:
+        return "Check that the field has the expected data type (numeric for calculations, string for text operations)."
+
+    # Backend errors
+    if "ogr2ogr" in msg or "gdal" in msg:
+        return "The GDAL CLI backend encountered an error. Try using the geopandas backend instead."
+    if "qgis_process" in msg:
+        return "The QGIS Process backend encountered an error. Try using the geopandas backend instead."
+
     return None
+
+
+def _validate_step_params(
+    step_id: str, resolved_params: dict, step_info: "registry.StepInfo",
+) -> None:
+    """Validate that all required params are present in resolved_params.
+
+    Raises StepExecutionError with an AI-friendly message listing
+    which params are missing and what the step expects.
+    """
+    if not step_info.params:
+        return
+
+    missing = []
+    for name, spec in step_info.params.items():
+        if spec.get("required", False) and name not in resolved_params:
+            missing.append(name)
+
+    if missing:
+        available = sorted(resolved_params.keys()) if resolved_params else []
+        param_docs = {
+            name: spec.get("description", "")
+            for name, spec in step_info.params.items()
+            if name in missing
+        }
+        raise StepExecutionError(
+            step_id,
+            f"Missing required parameter(s): {missing}. "
+            f"Provided: {available}.",
+            suggestion=(
+                f"Add the missing param(s) to the step's params section. "
+                f"Expected: {param_docs}"
+            ),
+        )
 
 
 def _evaluate_condition(condition: str, context: PipelineContext) -> bool:
@@ -246,14 +301,13 @@ def _evaluate_condition(condition: str, context: PipelineContext) -> bool:
         )
         return False
 
-    _SAFE_NODES = _SAFE_CONDITION_NODES
-    for node in ast.walk(tree):
-        if not isinstance(node, _SAFE_NODES):
-            logger.warning(
-                "Unsafe AST node '%s' in when condition '%s', treating as False",
-                type(node).__name__, condition,
-            )
-            return False
+    unsafe = validate_condition_ast(tree)
+    if unsafe:
+        logger.warning(
+            "%s in when condition '%s', treating as False",
+            unsafe, condition,
+        )
+        return False
 
     try:
         return bool(eval(  # noqa: S307

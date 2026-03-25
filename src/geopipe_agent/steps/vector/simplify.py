@@ -33,7 +33,7 @@ from geopipe_agent.models.result import StepResult
     outputs={
         "output": {"type": "geodataframe", "description": "简化后的矢量数据"},
     },
-    backends=["gdal_python"],
+    backends=["geopandas"],
     examples=[
         {
             "description": "简化道路数据（容差100米）",
