@@ -215,7 +215,7 @@ def _evaluate_condition(condition: str, context: PipelineContext) -> bool:
 
     resolved = re.sub(r"\$\{(\w+)\}", _replace_var, resolved)
 
-    # Replace $step_id.attr references
+    # Replace $step_id.attr and bare $step_id references
     def _replace_ref(m: re.Match) -> str:
         ref = m.group(0)
         try:
@@ -224,7 +224,8 @@ def _evaluate_condition(condition: str, context: PipelineContext) -> bool:
         except Exception:
             return repr(None)
 
-    resolved = re.sub(r"\$(\w[\w-]*)\.(\w+)", _replace_ref, resolved)
+    # Match $step_id.attr first (longer match), then bare $step_id
+    resolved = re.sub(r"\$(\w[\w-]*)(?:\.(\w+))?", _replace_ref, resolved)
 
     # Validate AST before eval: only allow safe node types
     try:
