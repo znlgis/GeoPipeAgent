@@ -6,7 +6,6 @@ import re
 
 from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
-from geopipe_agent.models.result import StepResult
 from geopipe_agent.models.qc import QcIssue
 from geopipe_agent.steps.qc._helpers import make_vector_qc_result, is_null, field_missing_issue
 
@@ -73,26 +72,15 @@ def qc_attribute_domain(ctx: StepContext) -> StepResult:
         issues.append(field_missing_issue(field_name, severity, "attribute_domain"))
     else:
         compiled_pattern = re.compile(pattern_str) if pattern_str else None
-
         for idx, value in gdf[field_name].items():
             if is_null(value):
-                continue  # skip nulls
-
-            violation = False
+                continue
+            msg = None
             if allowed_values is not None and value not in allowed_values:
-                violation = True
-                msg = (
-                    f"Feature {idx}: {field_name}='{value}' "
-                    f"not in allowed values {allowed_values}"
-                )
-            elif compiled_pattern is not None and not compiled_pattern.fullmatch(str(value)):
-                violation = True
-                msg = (
-                    f"Feature {idx}: {field_name}='{value}' "
-                    f"does not match pattern '{pattern_str}'"
-                )
-
-            if violation:
+                msg = f"Feature {idx}: {field_name}='{value}' not in allowed values {allowed_values}"
+            elif compiled_pattern and not compiled_pattern.fullmatch(str(value)):
+                msg = f"Feature {idx}: {field_name}='{value}' does not match pattern '{pattern_str}'"
+            if msg:
                 issues.append(QcIssue(
                     rule_id="attribute_domain",
                     severity=severity,

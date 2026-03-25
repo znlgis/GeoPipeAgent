@@ -186,14 +186,13 @@ def info(file: str):
 @main.command()
 def backends():
     """List available GIS backends and their status."""
-    from geopipe_agent.backends import GeoPandasBackend, GdalCliBackend, QgisProcessBackend
+    from geopipe_agent.backends import _BACKEND_CLASSES
 
-    all_backends = [GeoPandasBackend(), GdalCliBackend(), QgisProcessBackend()]
-    full_list = []
-    for b in all_backends:
-        full_list.append({"name": b.name(), "available": b.is_available()})
-
-    click.echo(json.dumps(full_list, indent=2))
+    result = [
+        {"name": cls().name(), "available": cls().is_available()}
+        for cls in _BACKEND_CLASSES
+    ]
+    click.echo(json.dumps(result, indent=2))
 
 
 @main.command("generate-skill-doc")

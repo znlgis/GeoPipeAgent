@@ -56,6 +56,3 @@ class GeoPandasBackend(GeoBackend):
 
         return gpd.overlay(gdf1, gdf2, how=how)
 
-
-# Backward compatibility alias
-GdalPythonBackend = GeoPandasBackend

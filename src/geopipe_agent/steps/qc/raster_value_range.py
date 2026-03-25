@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
-from geopipe_agent.models.result import StepResult
 from geopipe_agent.models.qc import QcIssue
 from geopipe_agent.steps.qc._helpers import make_raster_qc_result
 
@@ -79,24 +78,16 @@ def qc_raster_value_range(ctx: StepContext) -> StepResult:
                 feature_index=None,
                 message=f"Band index {band} out of range (raster has {data.shape[0]} bands)",
             ))
-            return StepResult(output=raster, stats={"issues_count": len(issues)}, issues=issues)
+            return make_raster_qc_result(raster, issues)
         band_data = data[band]
     else:
         band_data = data
 
     # Mask out NoData pixels
-    if nodata is not None:
-        valid_mask = band_data != nodata
-        valid_data = band_data[valid_mask]
-    else:
-        valid_data = band_data.ravel()
+    valid_data = band_data[band_data != nodata] if nodata is not None else band_data.ravel()
 
     if valid_data.size == 0:
-        return StepResult(
-            output=raster,
-            stats={"issues_count": 0, "valid_pixels": 0},
-            issues=[],
-        )
+        return make_raster_qc_result(raster, [], {"valid_pixels": 0})
 
     actual_min = float(np.nanmin(valid_data))
     actual_max = float(np.nanmax(valid_data))

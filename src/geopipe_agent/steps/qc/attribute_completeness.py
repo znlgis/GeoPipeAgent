@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
-from geopipe_agent.models.result import StepResult
 from geopipe_agent.models.qc import QcIssue
 from geopipe_agent.steps.qc._helpers import make_vector_qc_result, is_null
 
@@ -60,10 +59,8 @@ def qc_attribute_completeness(ctx: StepContext) -> StepResult:
     severity = ctx.param("severity", "warning")
 
     issues: list[QcIssue] = []
-    columns = set(gdf.columns)
+    missing_columns = [f for f in required_fields if f not in gdf.columns]
 
-    # Check for entirely missing columns first
-    missing_columns = [f for f in required_fields if f not in columns]
     for col in missing_columns:
         issues.append(QcIssue(
             rule_id="attribute_completeness",
@@ -73,17 +70,11 @@ def qc_attribute_completeness(ctx: StepContext) -> StepResult:
             details={"missing_column": col},
         ))
 
-    # Check field values for existing required columns
-    existing_required = [f for f in required_fields if f in columns]
-    for col in existing_required:
+    for col in required_fields:
+        if col not in gdf.columns:
+            continue
         for idx, value in gdf[col].items():
-            is_missing = False
-            if is_null(value):
-                is_missing = True
-            elif not allow_empty and isinstance(value, str) and value.strip() == "":
-                is_missing = True
-
-            if is_missing:
+            if is_null(value) or (not allow_empty and isinstance(value, str) and value.strip() == ""):
                 issues.append(QcIssue(
                     rule_id="attribute_completeness",
                     severity=severity,

@@ -29,21 +29,21 @@ def parse_yaml(source: str | Path) -> PipelineDefinition:
 
 def _load_yaml(source: str | Path) -> dict:
     """Load YAML from a file path or raw string."""
+    path = Path(source) if not isinstance(source, Path) else source
+
     try:
-        path = Path(source)
-        if path.exists() and path.is_file():
-            with open(path, "r", encoding="utf-8") as f:
-                data = yaml.safe_load(f)
+        if path.is_file():
+            text = path.read_text(encoding="utf-8")
         else:
-            data = yaml.safe_load(source)
+            text = str(source)
+    except (OSError, ValueError):
+        # Path constructor succeeded but filesystem check failed (e.g. long string)
+        text = str(source)
+
+    try:
+        data = yaml.safe_load(text)
     except yaml.YAMLError as e:
         raise PipelineParseError(f"Invalid YAML: {e}") from e
-    except (OSError, TypeError) as e:
-        # Path constructor or file access failed; treat source as raw YAML string
-        try:
-            data = yaml.safe_load(str(source))
-        except yaml.YAMLError as e2:
-            raise PipelineParseError(f"Cannot parse pipeline source: {e2}") from e2
 
     if not isinstance(data, dict):
         raise PipelineParseError(

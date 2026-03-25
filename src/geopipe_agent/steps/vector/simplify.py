@@ -5,6 +5,7 @@ from __future__ import annotations
 from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
 from geopipe_agent.models.result import StepResult
+from geopipe_agent.steps.vector._delegate import run_backend_op
 
 
 @step(
@@ -42,16 +43,8 @@ from geopipe_agent.models.result import StepResult
     ],
 )
 def vector_simplify(ctx: StepContext) -> StepResult:
-    gdf = ctx.input("input")
-    tolerance = ctx.param("tolerance")
-    preserve_topology = ctx.param("preserve_topology", True)
-
-    result_gdf = ctx.backend.simplify(
-        gdf, tolerance, preserve_topology=preserve_topology
+    return run_backend_op(
+        ctx, "simplify",
+        positional_params=["tolerance"],
+        keyword_params={"preserve_topology": "preserve_topology"},
     )
-
-    stats = {
-        "feature_count": len(result_gdf),
-    }
-
-    return StepResult(output=result_gdf, stats=stats)

@@ -5,6 +5,7 @@ from __future__ import annotations
 from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
 from geopipe_agent.models.result import StepResult
+from geopipe_agent.steps.vector._delegate import run_backend_op
 
 
 @step(
@@ -39,13 +40,7 @@ from geopipe_agent.models.result import StepResult
     ],
 )
 def vector_clip(ctx: StepContext) -> StepResult:
-    gdf = ctx.input("input")
-    clip_gdf = ctx.param("clip_geometry")
-
-    result_gdf = ctx.backend.clip(gdf, clip_gdf)
-
-    stats = {
-        "feature_count": len(result_gdf),
-    }
-
-    return StepResult(output=result_gdf, stats=stats)
+    return run_backend_op(
+        ctx, "clip",
+        positional_params=["clip_geometry"],
+    )

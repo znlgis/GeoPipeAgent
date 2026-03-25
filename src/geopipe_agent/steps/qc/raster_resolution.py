@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
-from geopipe_agent.models.result import StepResult
 from geopipe_agent.models.qc import QcIssue
 from geopipe_agent.steps.qc._helpers import make_raster_qc_result
 
@@ -77,54 +76,26 @@ def qc_raster_resolution(ctx: StepContext) -> StepResult:
             feature_index=None,
             message="Raster has no transform defined",
         ))
-        return StepResult(
-            output=raster,
-            stats={"issues_count": len(issues)},
-            issues=issues,
-        )
+        return make_raster_qc_result(raster, issues)
 
-    # Extract pixel sizes from the affine transform
     # transform[0] = pixel width (X), transform[4] = pixel height (Y, typically negative)
-    actual_x = abs(transform[0])
-    actual_y = abs(transform[4])
+    actual = {"x": abs(transform[0]), "y": abs(transform[4])}
+    expected = {"x": expected_x, "y": expected_y}
 
-    if abs(actual_x - expected_x) > tolerance:
-        issues.append(QcIssue(
-            rule_id="raster_resolution",
-            severity=severity,
-            feature_index=None,
-            message=(
-                f"X resolution mismatch: expected {expected_x}, "
-                f"got {actual_x} (diff={abs(actual_x - expected_x):.6f})"
-            ),
-            details={
-                "axis": "x",
-                "expected": expected_x,
-                "actual": actual_x,
-                "tolerance": tolerance,
-            },
-        ))
-
-    if abs(actual_y - expected_y) > tolerance:
-        issues.append(QcIssue(
-            rule_id="raster_resolution",
-            severity=severity,
-            feature_index=None,
-            message=(
-                f"Y resolution mismatch: expected {expected_y}, "
-                f"got {actual_y} (diff={abs(actual_y - expected_y):.6f})"
-            ),
-            details={
-                "axis": "y",
-                "expected": expected_y,
-                "actual": actual_y,
-                "tolerance": tolerance,
-            },
-        ))
+    for axis in ("x", "y"):
+        diff = abs(actual[axis] - expected[axis])
+        if diff > tolerance:
+            issues.append(QcIssue(
+                rule_id="raster_resolution",
+                severity=severity,
+                feature_index=None,
+                message=f"{axis.upper()} resolution mismatch: expected {expected[axis]}, got {actual[axis]} (diff={diff:.6f})",
+                details={"axis": axis, "expected": expected[axis], "actual": actual[axis], "tolerance": tolerance},
+            ))
 
     return make_raster_qc_result(raster, issues, {
-        "actual_x_resolution": actual_x,
-        "actual_y_resolution": actual_y,
+        "actual_x_resolution": actual["x"],
+        "actual_y_resolution": actual["y"],
         "expected_x_resolution": expected_x,
         "expected_y_resolution": expected_y,
     })

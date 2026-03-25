@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from geopipe_agent.models.qc import QcIssue
 
 
 @dataclass
@@ -11,22 +14,21 @@ class StepResult:
     """Result of executing a single pipeline step.
 
     Steps return a StepResult containing output data and optional metadata.
-    Attributes are accessible via dot notation for step references ($step_id.output).
+    Attributes are accessible via dot notation for step references ($step_id.attr).
 
-    QC steps populate the ``issues`` list with :class:`~geopipe_agent.models.qc.QcIssue`
-    instances. Non-QC steps leave it empty (backwards-compatible).
+    QC steps populate ``issues`` with QcIssue instances. Non-QC steps leave it empty.
     """
 
     output: Any = None
     stats: dict = field(default_factory=dict)
     metadata: dict = field(default_factory=dict)
-    issues: list = field(default_factory=list)
+    issues: list[QcIssue] = field(default_factory=list)
 
     def __getattr__(self, name: str) -> Any:
-        # Allow accessing stats/metadata keys as attributes for $step.key references
-        if name.startswith("_"):
+        """Allow stats/metadata keys as attributes for $step.key references."""
+        # Guard against recursion during init/unpickling
+        if name.startswith("_") or name in ("output", "stats", "metadata", "issues"):
             raise AttributeError(name)
-        # Use __dict__ to avoid recursive __getattr__ calls during init/unpickling
         stats = self.__dict__.get("stats", {})
         metadata = self.__dict__.get("metadata", {})
         if name in stats:
@@ -41,10 +43,10 @@ class StepResult:
 
     def summary(self) -> dict:
         """Generate a summary dict suitable for JSON reporting."""
-        summary = {}
+        summary: dict[str, Any] = {}
+
         if self.output is not None:
             try:
-                # GeoDataFrame summary
                 summary["feature_count"] = len(self.output)
                 if hasattr(self.output, "crs") and self.output.crs:
                     summary["crs"] = str(self.output.crs)
@@ -54,9 +56,9 @@ class StepResult:
                     )
             except (TypeError, AttributeError):
                 summary["type"] = type(self.output).__name__
+
         summary.update(self.stats)
 
-        # QC issues summary
         if self.issues:
             summary["issues_count"] = len(self.issues)
             by_severity: dict[str, int] = {}

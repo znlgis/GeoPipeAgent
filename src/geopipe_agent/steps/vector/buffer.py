@@ -5,6 +5,7 @@ from __future__ import annotations
 from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
 from geopipe_agent.models.result import StepResult
+from geopipe_agent.steps.vector._delegate import run_backend_op
 
 
 @step(
@@ -44,15 +45,11 @@ from geopipe_agent.models.result import StepResult
     ],
 )
 def vector_buffer(ctx: StepContext) -> StepResult:
-    gdf = ctx.input("input")
-    distance = ctx.param("distance")
-    cap_style = ctx.param("cap_style", "round")
-
-    result_gdf = ctx.backend.buffer(gdf, distance, cap_style=cap_style)
-
-    stats = {
-        "feature_count": len(result_gdf),
-        "total_area": float(result_gdf.geometry.area.sum()),
-    }
-
-    return StepResult(output=result_gdf, stats=stats)
+    return run_backend_op(
+        ctx, "buffer",
+        positional_params=["distance"],
+        keyword_params={"cap_style": "cap_style"},
+        extra_stats=lambda ctx, gdf, result: {
+            "total_area": float(result.geometry.area.sum()),
+        },
+    )

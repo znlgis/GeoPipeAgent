@@ -5,6 +5,7 @@ from __future__ import annotations
 from geopipe_agent.steps.registry import step
 from geopipe_agent.engine.context import StepContext
 from geopipe_agent.models.result import StepResult
+from geopipe_agent.steps.vector._delegate import run_backend_op
 
 
 @step(
@@ -36,15 +37,11 @@ from geopipe_agent.models.result import StepResult
     ],
 )
 def vector_reproject(ctx: StepContext) -> StepResult:
-    gdf = ctx.input("input")
-    target_crs = ctx.param("target_crs")
-
-    result_gdf = ctx.backend.reproject(gdf, target_crs)
-
-    stats = {
-        "feature_count": len(result_gdf),
-        "source_crs": str(gdf.crs) if gdf.crs else None,
-        "target_crs": target_crs,
-    }
-
-    return StepResult(output=result_gdf, stats=stats)
+    return run_backend_op(
+        ctx, "reproject",
+        positional_params=["target_crs"],
+        extra_stats=lambda ctx, gdf, result: {
+            "source_crs": str(gdf.crs) if gdf.crs else None,
+            "target_crs": ctx.param("target_crs"),
+        },
+    )

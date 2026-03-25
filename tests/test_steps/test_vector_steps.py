@@ -5,7 +5,7 @@ import geopandas as gpd
 from shapely.geometry import Point, Polygon
 
 from geopipe_agent.engine.context import StepContext
-from geopipe_agent.backends.gdal_python import GeoPandasBackend
+from geopipe_agent.backends.geopandas_backend import GeoPandasBackend
 from geopipe_agent.models.result import StepResult
 
 
