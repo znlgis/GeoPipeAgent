@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from geopipe_agent.backends.base import GeoBackend
-from geopipe_agent.backends.geopandas_backend import GeoPandasBackend
+from geopipe_agent.backends.native_python_backend import NativePythonBackend
 from geopipe_agent.backends.gdal_cli import GdalCliBackend
 from geopipe_agent.backends.qgis_process import QgisProcessBackend
+from geopipe_agent.backends.gdal_python_backend import GdalPythonBackend
+from geopipe_agent.backends.pyqgis_backend import PyQgisBackend
 from geopipe_agent.errors import BackendNotAvailableError
 
-_BACKEND_CLASSES = [GeoPandasBackend, GdalCliBackend, QgisProcessBackend]
+_BACKEND_CLASSES = [NativePythonBackend, GdalCliBackend, QgisProcessBackend, GdalPythonBackend, PyQgisBackend]
 
 
 class BackendManager:
@@ -37,16 +39,19 @@ class BackendManager:
             )
         if not self.backends:
             raise BackendNotAvailableError(
-                "No GIS backends available. Install geopandas+shapely (geopandas), "
-                "GDAL CLI tools (gdal_cli), or qgis_process."
+                "No GIS backends available. Install geopandas+shapely (native_python), "
+                "GDAL CLI tools (gdal_cli), GDAL Python bindings (gdal_python), "
+                "qgis_process, or PyQGIS (pyqgis)."
             )
         return self.backends[0]
 
 
 __all__ = [
     "GeoBackend",
-    "GeoPandasBackend",
+    "NativePythonBackend",
     "GdalCliBackend",
     "QgisProcessBackend",
+    "GdalPythonBackend",
+    "PyQgisBackend",
     "BackendManager",
 ]

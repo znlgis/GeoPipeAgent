@@ -28,7 +28,7 @@ from geopipe_agent.steps.vector._delegate import run_backend_op
     outputs={
         "output": {"type": "geodataframe", "description": "裁剪结果"},
     },
-    backends=["geopandas", "qgis_process"],
+    backends=["native_python", "qgis_process"],
     examples=[
         {
             "description": "裁剪道路数据到研究区范围",

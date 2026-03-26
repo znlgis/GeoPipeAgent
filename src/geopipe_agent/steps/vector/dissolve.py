@@ -34,7 +34,7 @@ from geopipe_agent.steps.vector._delegate import run_backend_op
     outputs={
         "output": {"type": "geodataframe", "description": "融合结果"},
     },
-    backends=["geopandas"],
+    backends=["native_python"],
     examples=[
         {
             "description": "按类型字段融合",

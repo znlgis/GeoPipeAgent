@@ -28,7 +28,7 @@ from geopipe_agent.steps.vector._delegate import run_backend_op
     outputs={
         "output": {"type": "geodataframe", "description": "转换后的矢量数据"},
     },
-    backends=["geopandas", "qgis_process"],
+    backends=["native_python", "qgis_process"],
     examples=[
         {
             "description": "转换到 Web Mercator",
