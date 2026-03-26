@@ -25,16 +25,18 @@ class GdalPythonBackend(GeoBackend):
     # -- internal helpers -----------------------------------------------------
 
     @staticmethod
-    def _gdf_to_ogr_ds(gdf: Any) -> Any:
-        """Write a GeoDataFrame to a temporary GeoJSON file and open as OGR DataSource."""
+    def _gdf_to_ogr_ds(gdf: Any) -> tuple[Any, str]:
+        """Write a GeoDataFrame to a temporary GeoJSON file and open as OGR DataSource.
+
+        Returns:
+            A tuple of (OGR DataSource, temp file path) so callers can clean up.
+        """
         from osgeo import ogr
         fd, path = tempfile.mkstemp(suffix=".geojson")
         os.close(fd)
         gdf.to_file(path, driver="GeoJSON")
         ds = ogr.Open(path, 0)
-        # attach path so caller can clean up
-        ds._tmp_path = path  # type: ignore[attr-defined]
-        return ds
+        return ds, path
 
     @staticmethod
     def _ogr_ds_to_gdf(path: str) -> Any:
@@ -61,8 +63,7 @@ class GdalPythonBackend(GeoBackend):
     def buffer(self, gdf: Any, distance: float, **kwargs) -> Any:
         from osgeo import ogr, osr
 
-        src_ds = self._gdf_to_ogr_ds(gdf)
-        src_tmp = getattr(src_ds, "_tmp_path", None)
+        src_ds, src_tmp = self._gdf_to_ogr_ds(gdf)
         src_layer = src_ds.GetLayer()
 
         dst_path = self._make_tmp_path()
@@ -100,8 +101,8 @@ class GdalPythonBackend(GeoBackend):
     def clip(self, input_gdf: Any, clip_gdf: Any, **kwargs) -> Any:
         from osgeo import ogr
 
-        src_ds = self._gdf_to_ogr_ds(input_gdf)
-        clip_ds = self._gdf_to_ogr_ds(clip_gdf)
+        src_ds, src_tmp = self._gdf_to_ogr_ds(input_gdf)
+        clip_ds, clip_tmp = self._gdf_to_ogr_ds(clip_gdf)
         src_layer = src_ds.GetLayer()
         clip_layer = clip_ds.GetLayer()
 
@@ -119,24 +120,17 @@ class GdalPythonBackend(GeoBackend):
         src_layer.Clip(clip_layer, dst_layer)
 
         dst_ds = None
-        src_tmp = getattr(src_ds, "_tmp_path", None)
-        clip_tmp = getattr(clip_ds, "_tmp_path", None)
         src_ds = None
         clip_ds = None
 
         result = self._ogr_ds_to_gdf(dst_path)
-        paths_to_clean = [dst_path]
-        if src_tmp:
-            paths_to_clean.append(src_tmp)
-        if clip_tmp:
-            paths_to_clean.append(clip_tmp)
-        self._cleanup(*paths_to_clean)
+        self._cleanup(dst_path, src_tmp, clip_tmp)
         return result
 
     def reproject(self, gdf: Any, target_crs: str, **kwargs) -> Any:
         from osgeo import ogr, osr
 
-        src_ds = self._gdf_to_ogr_ds(gdf)
+        src_ds, src_tmp = self._gdf_to_ogr_ds(gdf)
         src_layer = src_ds.GetLayer()
 
         # Build coordinate transformation
@@ -170,20 +164,16 @@ class GdalPythonBackend(GeoBackend):
             dst_layer.CreateFeature(out_feat)
 
         dst_ds = None
-        src_tmp = getattr(src_ds, "_tmp_path", None)
         src_ds = None
 
         result = self._ogr_ds_to_gdf(dst_path)
-        paths_to_clean = [dst_path]
-        if src_tmp:
-            paths_to_clean.append(src_tmp)
-        self._cleanup(*paths_to_clean)
+        self._cleanup(dst_path, src_tmp)
         return result
 
     def dissolve(self, gdf: Any, by: str | None = None, **kwargs) -> Any:
         from osgeo import ogr
 
-        src_ds = self._gdf_to_ogr_ds(gdf)
+        src_ds, src_tmp = self._gdf_to_ogr_ds(gdf)
         src_layer = src_ds.GetLayer()
 
         dst_path = self._make_tmp_path()
@@ -236,20 +226,16 @@ class GdalPythonBackend(GeoBackend):
                 dst_layer.CreateFeature(out_feat)
 
         dst_ds = None
-        src_tmp = getattr(src_ds, "_tmp_path", None)
         src_ds = None
 
         result = self._ogr_ds_to_gdf(dst_path)
-        paths_to_clean = [dst_path]
-        if src_tmp:
-            paths_to_clean.append(src_tmp)
-        self._cleanup(*paths_to_clean)
+        self._cleanup(dst_path, src_tmp)
         return result
 
     def simplify(self, gdf: Any, tolerance: float, **kwargs) -> Any:
         from osgeo import ogr
 
-        src_ds = self._gdf_to_ogr_ds(gdf)
+        src_ds, src_tmp = self._gdf_to_ogr_ds(gdf)
         src_layer = src_ds.GetLayer()
 
         dst_path = self._make_tmp_path()
@@ -281,21 +267,17 @@ class GdalPythonBackend(GeoBackend):
             dst_layer.CreateFeature(out_feat)
 
         dst_ds = None
-        src_tmp = getattr(src_ds, "_tmp_path", None)
         src_ds = None
 
         result = self._ogr_ds_to_gdf(dst_path)
-        paths_to_clean = [dst_path]
-        if src_tmp:
-            paths_to_clean.append(src_tmp)
-        self._cleanup(*paths_to_clean)
+        self._cleanup(dst_path, src_tmp)
         return result
 
     def overlay(self, gdf1: Any, gdf2: Any, how: str = "intersection", **kwargs) -> Any:
         from osgeo import ogr
 
-        src1_ds = self._gdf_to_ogr_ds(gdf1)
-        src2_ds = self._gdf_to_ogr_ds(gdf2)
+        src1_ds, src1_tmp = self._gdf_to_ogr_ds(gdf1)
+        src2_ds, src2_tmp = self._gdf_to_ogr_ds(gdf2)
         src1_layer = src1_ds.GetLayer()
         src2_layer = src2_ds.GetLayer()
 
@@ -328,16 +310,9 @@ class GdalPythonBackend(GeoBackend):
             raise ValueError(f"OGR layer does not support '{method}' operation")
 
         dst_ds = None
-        src1_tmp = getattr(src1_ds, "_tmp_path", None)
-        src2_tmp = getattr(src2_ds, "_tmp_path", None)
         src1_ds = None
         src2_ds = None
 
         result = self._ogr_ds_to_gdf(dst_path)
-        paths_to_clean = [dst_path]
-        if src1_tmp:
-            paths_to_clean.append(src1_tmp)
-        if src2_tmp:
-            paths_to_clean.append(src2_tmp)
-        self._cleanup(*paths_to_clean)
+        self._cleanup(dst_path, src1_tmp, src2_tmp)
         return result
