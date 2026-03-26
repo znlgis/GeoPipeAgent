@@ -258,9 +258,9 @@ def _suggest_fix(step_use: str, error: Exception) -> str | None:
         (lambda m: "could not convert" in m or "dtype" in m,
          "Check that the field has the expected data type."),
         (lambda m: "ogr2ogr" in m or "gdal" in m,
-         "The GDAL CLI backend encountered an error. Try using the geopandas backend instead."),
+         "The GDAL CLI backend encountered an error. Try using the native_python backend instead."),
         (lambda m: "qgis_process" in m,
-         "The QGIS Process backend encountered an error. Try using the geopandas backend instead."),
+         "The QGIS Process backend encountered an error. Try using the native_python backend instead."),
     ]
 
     for check, suggestion in patterns:

@@ -1,4 +1,4 @@
-"""GeoPandas backend — default backend using GeoPandas/Shapely."""
+"""Native Python backend — default backend using GeoPandas/Shapely."""
 
 from __future__ import annotations
 
@@ -7,11 +7,11 @@ from typing import Any
 from geopipe_agent.backends.base import GeoBackend
 
 
-class GeoPandasBackend(GeoBackend):
+class NativePythonBackend(GeoBackend):
     """Backend using GeoPandas + Shapely for in-process vector operations."""
 
     def name(self) -> str:
-        return "geopandas"
+        return "native_python"
 
     def is_available(self) -> bool:
         try:

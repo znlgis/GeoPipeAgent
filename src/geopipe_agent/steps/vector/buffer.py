@@ -36,7 +36,7 @@ from geopipe_agent.steps.vector._delegate import run_backend_op
         "output": {"type": "geodataframe", "description": "缓冲区结果"},
         "stats": {"type": "dict", "description": "统计信息"},
     },
-    backends=["geopandas", "qgis_process"],
+    backends=["native_python", "qgis_process"],
     examples=[
         {
             "description": "500米道路缓冲区",

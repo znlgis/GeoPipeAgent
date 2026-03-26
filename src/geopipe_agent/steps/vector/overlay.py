@@ -34,7 +34,7 @@ from geopipe_agent.models.result import StepResult
     outputs={
         "output": {"type": "geodataframe", "description": "叠加分析结果"},
     },
-    backends=["geopandas"],
+    backends=["native_python"],
     examples=[
         {
             "description": "两个图层求交集",

@@ -92,7 +92,7 @@ pipeline:
         key: value
       on_error: fail               # Optional: fail/skip/retry (default: fail)
       when: "$step_id.issues_count > 0"  # Optional: conditional execution
-      backend: geopandas           # Optional: specific backend to use
+      backend: native_python           # Optional: specific backend to use
    outputs:                         # Optional: pipeline output declarations
      result: "$step_id.output"
 ```

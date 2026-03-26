@@ -34,7 +34,7 @@ from geopipe_agent.steps.vector._delegate import run_backend_op
     outputs={
         "output": {"type": "geodataframe", "description": "简化后的矢量数据"},
     },
-    backends=["geopandas"],
+    backends=["native_python"],
     examples=[
         {
             "description": "简化道路数据（容差100米）",
