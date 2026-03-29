@@ -8,9 +8,15 @@ from geopipe_agent.backends.gdal_cli import GdalCliBackend
 from geopipe_agent.backends.qgis_process import QgisProcessBackend
 from geopipe_agent.backends.gdal_python_backend import GdalPythonBackend
 from geopipe_agent.backends.pyqgis_backend import PyQgisBackend
+from geopipe_agent.backends.generic_cli_backend import GenericCliBackend
+from geopipe_agent.backends.curl_api_backend import CurlApiBackend
 from geopipe_agent.errors import BackendNotAvailableError
 
-_BACKEND_CLASSES = [NativePythonBackend, GdalCliBackend, QgisProcessBackend, GdalPythonBackend, PyQgisBackend]
+_BACKEND_CLASSES = [
+    NativePythonBackend, GdalCliBackend, QgisProcessBackend,
+    GdalPythonBackend, PyQgisBackend,
+    GenericCliBackend, CurlApiBackend,
+]
 
 # Module-level singleton to avoid repeated backend detection
 _cached_manager: "BackendManager | None" = None
@@ -73,5 +79,7 @@ __all__ = [
     "QgisProcessBackend",
     "GdalPythonBackend",
     "PyQgisBackend",
+    "GenericCliBackend",
+    "CurlApiBackend",
     "BackendManager",
 ]
