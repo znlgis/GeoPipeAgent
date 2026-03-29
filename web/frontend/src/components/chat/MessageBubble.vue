@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Upload } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 import type { ChatMessage } from '@/types/chat'
@@ -92,8 +93,7 @@ function handleLoadYaml(yaml: string) {
 
           <!-- YAML load buttons -->
           <div v-for="(yaml, idx) in yamlBlocks" :key="idx" class="yaml-action">
-            <el-button size="small" type="primary" plain @click="handleLoadYaml(yaml)">
-              <el-icon><i class="el-icon-upload" /></el-icon>
+            <el-button size="small" type="primary" plain :icon="Upload" @click="handleLoadYaml(yaml)">
               加载到编辑器
             </el-button>
           </div>
