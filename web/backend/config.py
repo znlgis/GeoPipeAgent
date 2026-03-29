@@ -7,10 +7,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent  # GeoPipeAgent root
 DATA_DIR = BASE_DIR / "data"
 CONVERSATIONS_DIR = DATA_DIR / "conversations"
 PIPELINES_DIR = DATA_DIR / "pipelines"
+EXTERNAL_SKILLS_DIR = DATA_DIR / "external_skills"
 LLM_CONFIG_FILE = DATA_DIR / "llm_config.json"
 
 # Ensure directories exist
-for d in [DATA_DIR, CONVERSATIONS_DIR, PIPELINES_DIR]:
+for d in [DATA_DIR, CONVERSATIONS_DIR, PIPELINES_DIR, EXTERNAL_SKILLS_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_LLM_CONFIG = {
