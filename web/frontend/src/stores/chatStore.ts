@@ -6,6 +6,7 @@ import type {
   ConversationSummary,
   ChatMessage,
 } from '@/types/chat'
+import type { SkillSettings } from '@/types/skill'
 import { createSSEConnection } from '@/utils/sseClient'
 
 export const useChatStore = defineStore('chat', () => {
@@ -40,7 +41,11 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  function sendMessage(message: string, mode: 'chat' | 'pipeline' = 'chat') {
+  function sendMessage(
+    message: string,
+    mode: 'chat' | 'pipeline' = 'chat',
+    skillSettings?: SkillSettings,
+  ) {
     if (!currentConversation.value) return
 
     // Add user message locally
@@ -59,14 +64,22 @@ export const useChatStore = defineStore('chat', () => {
       activeController.abort()
     }
 
-    const url =
-      mode === 'pipeline'
-        ? '/api/llm/chat'
-        : '/api/llm/chat'
+    const body: Record<string, any> = {
+      message,
+      conversation_id: currentConversation.value.id,
+    }
+
+    // Attach skill settings if provided
+    if (skillSettings) {
+      body.skill_enabled = skillSettings.enabled
+      if (skillSettings.modules.length > 0) {
+        body.skill_modules = skillSettings.modules
+      }
+    }
 
     activeController = createSSEConnection(
-      url,
-      { message, conversation_id: currentConversation.value.id },
+      '/api/llm/chat',
+      body,
       {
         onMessage: (event, data) => {
           if (event === 'chunk' && data.content) {
@@ -112,7 +125,17 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  function generatePipeline(description: string) {
+  function generatePipeline(description: string, skillSettings?: SkillSettings) {
+    if (!currentConversation.value) return
+
+    // Add user message locally
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: description,
+      timestamp: new Date().toISOString(),
+    }
+    currentConversation.value.messages.push(userMessage)
+
     isStreaming.value = true
     streamingContent.value = ''
 
@@ -120,14 +143,36 @@ export const useChatStore = defineStore('chat', () => {
       activeController.abort()
     }
 
+    const body: Record<string, any> = {
+      description,
+      conversation_id: currentConversation.value.id,
+    }
+
+    // For pipeline generation, skill is enabled by default
+    if (skillSettings) {
+      body.skill_enabled = skillSettings.enabled
+      if (skillSettings.modules.length > 0) {
+        body.skill_modules = skillSettings.modules
+      }
+    } else {
+      body.skill_enabled = true
+    }
+
     activeController = createSSEConnection(
       '/api/llm/generate-pipeline',
-      { description },
+      body,
       {
         onMessage: (event, data) => {
           if (event === 'chunk' && data.content) {
             streamingContent.value += data.content
           } else if (event === 'done') {
+            const assistantMessage: ChatMessage = {
+              role: 'assistant',
+              content: streamingContent.value,
+              timestamp: new Date().toISOString(),
+            }
+            currentConversation.value?.messages.push(assistantMessage)
+            streamingContent.value = ''
             isStreaming.value = false
           }
         },
@@ -145,6 +190,16 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   function analyzeResult(report: Record<string, any>) {
+    if (!currentConversation.value) return
+
+    const reportStr = JSON.stringify(report, null, 2)
+    const userMessage: ChatMessage = {
+      role: 'user',
+      content: `Analyze this report:\n\`\`\`json\n${reportStr}\n\`\`\``,
+      timestamp: new Date().toISOString(),
+    }
+    currentConversation.value.messages.push(userMessage)
+
     isStreaming.value = true
     streamingContent.value = ''
 
@@ -154,12 +209,19 @@ export const useChatStore = defineStore('chat', () => {
 
     activeController = createSSEConnection(
       '/api/llm/analyze-result',
-      { report },
+      { report, conversation_id: currentConversation.value.id },
       {
         onMessage: (event, data) => {
           if (event === 'chunk' && data.content) {
             streamingContent.value += data.content
           } else if (event === 'done') {
+            const assistantMessage: ChatMessage = {
+              role: 'assistant',
+              content: streamingContent.value,
+              timestamp: new Date().toISOString(),
+            }
+            currentConversation.value?.messages.push(assistantMessage)
+            streamingContent.value = ''
             isStreaming.value = false
           }
         },

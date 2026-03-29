@@ -89,7 +89,13 @@ async def chat(req: LlmChatRequest):
         for m in (conversation or {}).get("messages", [])
     ]
 
-    stream = llm_service.stream_chat(history, config, mode=req.mode)
+    stream = llm_service.stream_chat(
+        history,
+        config,
+        mode=req.mode,
+        skill_enabled=req.skill_enabled,
+        skill_modules=req.skill_modules,
+    )
     return _make_sse_response(conv_id, stream)
 
 
@@ -106,7 +112,12 @@ async def generate_pipeline(req: LlmGenerateRequest):
 
     conversation_store.add_message(conv_id, "user", req.description)
 
-    stream = llm_service.generate_pipeline(req.description, config)
+    stream = llm_service.generate_pipeline(
+        req.description,
+        config,
+        skill_enabled=req.skill_enabled,
+        skill_modules=req.skill_modules,
+    )
     return _make_sse_response(conv_id, stream)
 
 

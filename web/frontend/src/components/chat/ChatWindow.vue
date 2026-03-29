@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { VideoPause } from '@element-plus/icons-vue'
+import { VideoPause, MagicStick } from '@element-plus/icons-vue'
 import { useChatStore } from '@/stores/chatStore'
+import { useSkillStore } from '@/stores/skillStore'
 import type { ChatMessage } from '@/types/chat'
 import MessageBubble from './MessageBubble.vue'
 
@@ -12,11 +13,13 @@ const emit = defineEmits<{
 }>()
 
 const chatStore = useChatStore()
+const skillStore = useSkillStore()
 const { t } = useI18n()
 
 const inputText = ref('')
 const activeMode = ref<'chat' | 'pipeline' | 'analyze'>('chat')
 const messageListRef = ref<HTMLElement | null>(null)
+const showSkillPopover = ref(false)
 
 const messages = computed<ChatMessage[]>(
   () => chatStore.currentConversation?.messages ?? [],
@@ -25,6 +28,10 @@ const messages = computed<ChatMessage[]>(
 const canSend = computed(
   () => inputText.value.trim().length > 0 && !chatStore.isStreaming,
 )
+
+onMounted(() => {
+  skillStore.fetchModules()
+})
 
 function scrollToBottom() {
   nextTick(() => {
@@ -49,15 +56,17 @@ function send() {
     return
   }
 
+  const skill = skillStore.skillSettings
+
   switch (activeMode.value) {
     case 'pipeline':
-      chatStore.generatePipeline(text)
+      chatStore.generatePipeline(text, skill)
       break
     case 'analyze':
       chatStore.analyzeResult({ report: text })
       break
     default:
-      chatStore.sendMessage(text, 'chat')
+      chatStore.sendMessage(text, 'chat', skill)
   }
 
   inputText.value = ''
@@ -76,6 +85,14 @@ function handleKeydown(event: KeyboardEvent) {
 
 function handleLoadYaml(yaml: string) {
   emit('load-pipeline', yaml)
+}
+
+function handleToggleSkill() {
+  skillStore.setSkillEnabled(!skillStore.skillEnabled)
+}
+
+function handleToggleModule(moduleId: string) {
+  skillStore.toggleModule(moduleId)
 }
 </script>
 
@@ -103,6 +120,10 @@ function handleLoadYaml(yaml: string) {
           <div class="hint-item">
             <el-tag size="small" type="warning" effect="plain">{{ t('chat.modeAnalyze') }}</el-tag>
             <span>{{ t('chat.welcomeHint3') }}</span>
+          </div>
+          <div class="hint-item">
+            <el-tag size="small" type="info" effect="plain">Skill</el-tag>
+            <span>{{ t('chat.welcomeHint4') }}</span>
           </div>
         </div>
       </div>
@@ -135,28 +156,94 @@ function handleLoadYaml(yaml: string) {
 
       <!-- Input area -->
       <div class="input-area">
-        <!-- Mode selector -->
+        <!-- Mode selector & Skill toggle -->
         <div class="input-controls">
-          <el-button-group size="small">
-            <el-button
-              :type="activeMode === 'chat' ? 'primary' : 'default'"
-              @click="activeMode = 'chat'"
+          <div class="controls-left">
+            <el-button-group size="small">
+              <el-button
+                :type="activeMode === 'chat' ? 'primary' : 'default'"
+                @click="activeMode = 'chat'"
+              >
+                {{ t('chat.modeChat') }}
+              </el-button>
+              <el-button
+                :type="activeMode === 'pipeline' ? 'primary' : 'default'"
+                @click="activeMode = 'pipeline'"
+              >
+                {{ t('chat.modePipeline') }}
+              </el-button>
+              <el-button
+                :type="activeMode === 'analyze' ? 'primary' : 'default'"
+                @click="activeMode = 'analyze'"
+              >
+                {{ t('chat.modeAnalyze') }}
+              </el-button>
+            </el-button-group>
+
+            <!-- Skill toggle with popover -->
+            <el-popover
+              v-model:visible="showSkillPopover"
+              placement="top-start"
+              :width="320"
+              trigger="click"
             >
-              {{ t('chat.modeChat') }}
-            </el-button>
-            <el-button
-              :type="activeMode === 'pipeline' ? 'primary' : 'default'"
-              @click="activeMode = 'pipeline'"
-            >
-              {{ t('chat.modePipeline') }}
-            </el-button>
-            <el-button
-              :type="activeMode === 'analyze' ? 'primary' : 'default'"
-              @click="activeMode = 'analyze'"
-            >
-              {{ t('chat.modeAnalyze') }}
-            </el-button>
-          </el-button-group>
+              <template #reference>
+                <el-button
+                  size="small"
+                  :type="skillStore.skillEnabled ? 'success' : 'default'"
+                  :icon="MagicStick"
+                  class="skill-toggle-btn"
+                >
+                  Skill
+                  <el-badge
+                    v-if="skillStore.skillEnabled"
+                    :value="skillStore.selectedModules.length || skillStore.modules.length"
+                    type="success"
+                    class="skill-badge"
+                  />
+                </el-button>
+              </template>
+
+              <div class="skill-popover">
+                <div class="skill-popover-header">
+                  <span class="skill-popover-title">{{ t('skill.enhanceTitle') }}</span>
+                  <el-switch
+                    :model-value="skillStore.skillEnabled"
+                    :active-text="t('skill.enabled')"
+                    :inactive-text="t('skill.disabled')"
+                    size="small"
+                    @change="handleToggleSkill"
+                  />
+                </div>
+                <p class="skill-popover-desc">{{ t('skill.enhanceDesc') }}</p>
+
+                <div v-if="skillStore.skillEnabled" class="skill-module-list">
+                  <div
+                    v-for="mod in skillStore.modules"
+                    :key="mod.id"
+                    class="skill-module-item"
+                    @click="handleToggleModule(mod.id)"
+                  >
+                    <el-checkbox
+                      :model-value="skillStore.selectedModules.includes(mod.id)"
+                      size="small"
+                      @click.stop
+                      @change="handleToggleModule(mod.id)"
+                    >
+                      <span class="module-name">{{ mod.name }}</span>
+                    </el-checkbox>
+                    <span class="module-tokens">~{{ mod.token_estimate }} tokens</span>
+                  </div>
+                </div>
+
+                <div v-if="skillStore.skillEnabled" class="skill-popover-footer">
+                  <span class="token-estimate">
+                    {{ t('skill.estimatedTokens') }}: ~{{ skillStore.totalTokenEstimate }}
+                  </span>
+                </div>
+              </div>
+            </el-popover>
+          </div>
 
           <!-- Stop button -->
           <transition name="fade">
@@ -211,7 +298,7 @@ function handleLoadYaml(yaml: string) {
   transition: background var(--gp-transition);
 }
 
-/* ── Welcome state ── */
+/* -- Welcome state -- */
 .empty-state {
   flex: 1;
   display: flex;
@@ -268,7 +355,7 @@ function handleLoadYaml(yaml: string) {
   flex-shrink: 0;
 }
 
-/* ── Message list ── */
+/* -- Message list -- */
 .message-list {
   flex: 1;
   overflow-y: auto;
@@ -284,7 +371,7 @@ function handleLoadYaml(yaml: string) {
   transform: translateY(12px);
 }
 
-/* ── Input area ── */
+/* -- Input area -- */
 .input-area {
   border-top: 1px solid var(--gp-border-color);
   padding: 10px 16px;
@@ -299,6 +386,27 @@ function handleLoadYaml(yaml: string) {
   margin-bottom: 8px;
 }
 
+.controls-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skill-toggle-btn {
+  position: relative;
+}
+
+.skill-toggle-btn .skill-badge {
+  margin-left: 4px;
+}
+
+.skill-toggle-btn .skill-badge :deep(.el-badge__content) {
+  font-size: 10px;
+  height: 14px;
+  line-height: 14px;
+  padding: 0 4px;
+}
+
 .input-row {
   display: flex;
   gap: 8px;
@@ -307,6 +415,73 @@ function handleLoadYaml(yaml: string) {
 
 .input-row :deep(.el-textarea) {
   flex: 1;
+}
+
+/* -- Skill popover -- */
+.skill-popover {
+  padding: 4px 0;
+}
+
+.skill-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.skill-popover-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gp-text-primary);
+}
+
+.skill-popover-desc {
+  font-size: 12px;
+  color: var(--gp-text-muted);
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+.skill-module-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.skill-module-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.skill-module-item:hover {
+  background: var(--gp-hover-bg);
+}
+
+.module-name {
+  font-size: 13px;
+  color: var(--gp-text-primary);
+}
+
+.module-tokens {
+  font-size: 11px;
+  color: var(--gp-text-muted);
+  flex-shrink: 0;
+}
+
+.skill-popover-footer {
+  padding-top: 8px;
+  border-top: 1px solid var(--gp-border-light);
+}
+
+.token-estimate {
+  font-size: 12px;
+  color: var(--gp-text-secondary);
 }
 
 /* Fade transition for stop button */

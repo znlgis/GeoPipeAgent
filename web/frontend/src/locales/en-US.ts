@@ -30,6 +30,7 @@ export default {
   nav: {
     pipelineEditor: 'Pipeline Editor',
     aiChat: 'AI Chat',
+    skillManager: 'Skill Manager',
     history: 'History',
   },
   pipeline: {
@@ -116,6 +117,7 @@ export default {
     welcomeHint1: 'Chat: Freely discuss GIS topics with AI',
     welcomeHint2: 'Generate Pipeline: Describe your needs, AI generates YAML config',
     welcomeHint3: 'Analyze Result: Paste execution results for AI analysis',
+    welcomeHint4: 'Enable Skill: Inject full framework knowledge for more accurate pipeline generation',
     renameConversation: 'Rename Conversation',
     renameSuccess: 'Renamed',
     renameFailed: 'Rename failed',
@@ -204,5 +206,29 @@ export default {
     notFoundError: 'Resource not found',
     serverError: 'Server error',
     unexpectedError: 'An unexpected error occurred. Please refresh the page.',
+  },
+  skill: {
+    // Chat skill toggle
+    enhanceTitle: 'Skill Enhancement',
+    enhanceDesc: 'When enabled, injects full framework knowledge (step parameters, YAML syntax, usage examples) into the AI system prompt for more accurate pipeline generation.',
+    enabled: 'Enabled',
+    disabled: 'Disabled',
+    estimatedTokens: 'Estimated token cost',
+    // Skill manager page
+    managerTitle: 'Skill Manager',
+    managerDesc: 'View, generate, and export GeoPipeAgent skill documents. Skill documents provide the AI with complete framework knowledge for accurate pipeline YAML generation.',
+    regenerate: 'Regenerate',
+    downloadAll: 'Download All',
+    generateSuccess: 'Successfully generated {count} skill files',
+    generateFailed: 'Failed to generate skill files',
+    chars: 'chars',
+    // Integration guide
+    guideTitle: 'How to Use Skills',
+    guideStep1Title: 'Enable Skills in Chat',
+    guideStep1Desc: 'Click the "Skill" button at the bottom of the AI Chat interface to enable enhancement mode and select which knowledge modules to inject.',
+    guideStep2Title: 'Choose the Right Modules',
+    guideStep2Desc: 'Skill Overview provides a framework summary; Steps Reference contains detailed parameters for all steps; Pipeline Schema describes YAML syntax rules.',
+    guideStep3Title: 'Export for External AI',
+    guideStep3Desc: 'Click "Download All" to export Markdown files that can be directly provided to ChatGPT, Claude, or other external AI assistants as context reference.',
   },
 }

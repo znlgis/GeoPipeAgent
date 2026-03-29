@@ -87,6 +87,14 @@ class LlmChatRequest(BaseModel):
     )
     message: str = Field(description="User message content")
     mode: str = Field(default="chat", description="Interaction mode (chat, generate, analyze)")
+    skill_enabled: bool = Field(
+        default=False,
+        description="Whether to inject full skill content into the system prompt",
+    )
+    skill_modules: Optional[list[str]] = Field(
+        default=None,
+        description="Which skill modules to include (None = all). Options: skill, steps-reference, pipeline-schema",
+    )
 
 
 class LlmGenerateRequest(BaseModel):
@@ -95,6 +103,14 @@ class LlmGenerateRequest(BaseModel):
     description: str = Field(description="Natural-language pipeline description")
     conversation_id: Optional[str] = Field(
         default=None, description="Existing conversation to continue"
+    )
+    skill_enabled: bool = Field(
+        default=True,
+        description="Whether to inject full skill content (defaults to True for pipeline generation)",
+    )
+    skill_modules: Optional[list[str]] = Field(
+        default=None,
+        description="Which skill modules to include (None = all)",
     )
 
 

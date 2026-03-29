@@ -63,6 +63,7 @@ function toggleLocale() {
         >
           <el-menu-item index="/">{{ t('nav.pipelineEditor') }}</el-menu-item>
           <el-menu-item index="/chat">{{ t('nav.aiChat') }}</el-menu-item>
+          <el-menu-item index="/skill">{{ t('nav.skillManager') }}</el-menu-item>
           <el-menu-item index="/history">{{ t('nav.history') }}</el-menu-item>
         </el-menu>
         <div class="header-actions">

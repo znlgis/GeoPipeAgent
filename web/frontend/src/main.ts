@@ -51,6 +51,11 @@ const router = createRouter({
       component: () => import('./views/LlmChat.vue'),
     },
     {
+      path: '/skill',
+      name: 'SkillManager',
+      component: () => import('./views/SkillManager.vue'),
+    },
+    {
       path: '/history',
       name: 'ConversationHistory',
       component: () => import('./views/ConversationHistory.vue'),

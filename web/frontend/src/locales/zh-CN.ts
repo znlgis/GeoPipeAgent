@@ -30,6 +30,7 @@ export default {
   nav: {
     pipelineEditor: '流程编辑器',
     aiChat: 'AI 对话',
+    skillManager: 'Skill 管理',
     history: '历史记录',
   },
   pipeline: {
@@ -116,6 +117,7 @@ export default {
     welcomeHint1: '对话模式：与 AI 自由交流 GIS 问题',
     welcomeHint2: '生成流水线：用自然语言描述需求，AI 生成 YAML 配置',
     welcomeHint3: '分析结果：粘贴执行结果，AI 帮你分析和优化',
+    welcomeHint4: '启用 Skill：注入完整框架知识，AI 生成更准确的 Pipeline',
     renameConversation: '重命名对话',
     renameSuccess: '已重命名',
     renameFailed: '重命名失败',
@@ -204,5 +206,29 @@ export default {
     notFoundError: '资源未找到',
     serverError: '服务器错误',
     unexpectedError: '发生了一个意外错误，请刷新页面重试',
+  },
+  skill: {
+    // Chat skill toggle
+    enhanceTitle: 'Skill 增强',
+    enhanceDesc: '启用后将完整的框架知识（步骤参数、YAML 语法、使用示例）注入到 AI 的系统提示中，让 AI 生成更准确的 Pipeline。',
+    enabled: '已启用',
+    disabled: '未启用',
+    estimatedTokens: '预估 Token 消耗',
+    // Skill manager page
+    managerTitle: 'Skill 管理',
+    managerDesc: '查看、生成和导出 GeoPipeAgent 的 Skill 文档。Skill 文档为 AI 提供完整的框架知识，帮助生成准确的 Pipeline YAML。',
+    regenerate: '重新生成',
+    downloadAll: '全部下载',
+    generateSuccess: '已成功生成 {count} 个 Skill 文件',
+    generateFailed: 'Skill 文件生成失败',
+    chars: '字符',
+    // Integration guide
+    guideTitle: '如何使用 Skill',
+    guideStep1Title: '在对话中启用 Skill',
+    guideStep1Desc: '在 AI 对话界面底部，点击 "Skill" 按钮开启增强模式，选择需要注入的知识模块。',
+    guideStep2Title: '选择合适的模块',
+    guideStep2Desc: 'Skill Overview 提供框架概览；Steps Reference 包含所有步骤的详细参数；Pipeline Schema 描述 YAML 语法规则。',
+    guideStep3Title: '导出给外部 AI 使用',
+    guideStep3Desc: '点击"全部下载"导出 Markdown 文件，可直接提供给 ChatGPT、Claude 等外部 AI 助手作为上下文参考。',
   },
 }

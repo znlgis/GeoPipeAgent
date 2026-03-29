@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
-from .routers import pipeline, llm, export
+from .routers import pipeline, llm, export, skill
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +52,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(pipeline.router)
 app.include_router(llm.router)
 app.include_router(export.router)
+app.include_router(skill.router)
 
 
 @app.get("/api/health")
