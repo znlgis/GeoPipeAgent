@@ -1,0 +1,62 @@
+import { ref } from 'vue'
+import { usePipelineStore } from '@/stores/pipelineStore'
+import { ElMessageBox } from 'element-plus'
+import axios from 'axios'
+import type { PipelineInfo } from '@/types/pipeline'
+
+export function usePipeline() {
+  const store = usePipelineStore()
+  const savedPipelines = ref<PipelineInfo[]>([])
+  const loading = ref(false)
+
+  async function loadSavedPipelines() {
+    loading.value = true
+    try {
+      const res = await axios.get<PipelineInfo[]>('/api/v1/pipelines')
+      savedPipelines.value = res.data
+    } catch (err) {
+      console.error('Failed to load pipelines:', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function loadPipeline(id: string) {
+    loading.value = true
+    try {
+      const res = await axios.get<{ yaml_content: string }>(
+        `/api/v1/pipelines/${id}`,
+      )
+      store.loadFromYaml(res.data.yaml_content)
+    } catch (err) {
+      console.error('Failed to load pipeline:', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function deletePipeline(id: string) {
+    try {
+      await ElMessageBox.confirm('确定要删除此流水线吗？', '确认删除', {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+      })
+      await axios.delete(`/api/v1/pipelines/${id}`)
+      savedPipelines.value = savedPipelines.value.filter((p) => p.id !== id)
+    } catch (err) {
+      // User cancelled or request failed — nothing to do on cancel
+      if (err !== 'cancel') {
+        console.error('Failed to delete pipeline:', err)
+      }
+    }
+  }
+
+  return {
+    savedPipelines,
+    loading,
+    loadSavedPipelines,
+    loadPipeline,
+    deletePipeline,
+  }
+}
