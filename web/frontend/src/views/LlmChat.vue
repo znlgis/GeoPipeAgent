@@ -134,8 +134,8 @@ function handleLoadPipeline(yaml: string) {
 }
 
 .conversation-sidebar {
-  background: #fff;
-  border-right: 1px solid #e4e7ed;
+  background: var(--gp-bg-primary);
+  border-right: 1px solid var(--gp-border-color);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -171,7 +171,7 @@ function handleLoadPipeline(yaml: string) {
 }
 
 .conversation-item:hover {
-  background: #f5f7fa;
+  background: var(--gp-bg-secondary);
 }
 
 .conversation-item.active {
@@ -181,7 +181,7 @@ function handleLoadPipeline(yaml: string) {
 .conv-title {
   font-size: 14px;
   font-weight: 500;
-  color: #303133;
+  color: var(--gp-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -192,7 +192,7 @@ function handleLoadPipeline(yaml: string) {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
-  color: #909399;
+  color: var(--gp-text-muted);
   margin-top: 4px;
 }
 

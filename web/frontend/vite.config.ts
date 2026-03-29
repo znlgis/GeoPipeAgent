@@ -17,4 +17,23 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vue-vendor': ['vue', 'vue-router', 'pinia'],
+          'element-plus': ['element-plus', '@element-plus/icons-vue'],
+          'vue-flow': [
+            '@vue-flow/core',
+            '@vue-flow/background',
+            '@vue-flow/controls',
+            '@vue-flow/minimap',
+          ],
+          'ui-utils': ['markdown-it', 'highlight.js'],
+          'data-utils': ['js-yaml', 'dagre', 'axios'],
+        },
+      },
+    },
+  },
 })

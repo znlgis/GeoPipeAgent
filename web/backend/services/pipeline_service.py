@@ -127,13 +127,39 @@ async def execute_pipeline_stream(yaml_content: str) -> AsyncGenerator[dict[str,
 
 
 def save_pipeline(name: str, yaml_content: str) -> str:
-    """Persist a pipeline YAML to disk and return its id."""
-    pipeline_id = uuid.uuid4().hex[:12]
+    """Persist a pipeline YAML to disk and return its id.
+
+    If a pipeline with the same name exists, its version is incremented.
+    """
     now = datetime.now(timezone.utc).isoformat()
+
+    # Check if a pipeline with the same name already exists
+    existing_id = None
+    existing_version = 0
+    for meta_path in PIPELINES_DIR.glob("*.meta.json"):
+        try:
+            with open(meta_path, "r", encoding="utf-8") as f:
+                existing_meta = json.load(f)
+            if existing_meta.get("name") == name:
+                existing_id = existing_meta["id"]
+                existing_version = existing_meta.get("version", 1)
+                break
+        except (json.JSONDecodeError, KeyError, OSError):
+            continue
+
+    if existing_id:
+        # Update existing pipeline with new version
+        pipeline_id = existing_id
+        new_version = existing_version + 1
+    else:
+        pipeline_id = uuid.uuid4().hex[:12]
+        new_version = 1
+
     meta = {
         "id": pipeline_id,
         "name": name,
-        "created_at": now,
+        "version": new_version,
+        "created_at": now if not existing_id else _get_created_at(pipeline_id, now),
         "updated_at": now,
     }
     dest = PIPELINES_DIR / f"{pipeline_id}.yaml"
@@ -142,6 +168,18 @@ def save_pipeline(name: str, yaml_content: str) -> str:
     meta_path = PIPELINES_DIR / f"{pipeline_id}.meta.json"
     meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
     return pipeline_id
+
+
+def _get_created_at(pipeline_id: str, fallback: str) -> str:
+    """Read the original created_at from an existing pipeline's metadata."""
+    meta_path = PIPELINES_DIR / f"{pipeline_id}.meta.json"
+    if meta_path.exists():
+        try:
+            with open(meta_path, "r", encoding="utf-8") as f:
+                return json.load(f).get("created_at", fallback)
+        except (json.JSONDecodeError, OSError):
+            pass
+    return fallback
 
 
 def list_pipelines() -> list[dict[str, Any]]:

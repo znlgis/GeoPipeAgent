@@ -72,6 +72,7 @@ class PipelineInfo(BaseModel):
 
     id: str = Field(description="Pipeline identifier")
     name: str = Field(description="Pipeline name")
+    version: int = Field(default=1, description="Pipeline version number")
     created_at: str = Field(description="ISO-8601 creation timestamp")
     updated_at: str = Field(description="ISO-8601 last-update timestamp")
 
