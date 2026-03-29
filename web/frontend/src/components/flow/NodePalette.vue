@@ -1,28 +1,30 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Search } from '@element-plus/icons-vue'
 import { usePipelineStore } from '@/stores/pipelineStore'
 import type { StepSchema } from '@/types/pipeline'
 
 const store = usePipelineStore()
+const { t } = useI18n()
 
 const searchQuery = ref('')
 
-const categoryLabels: Record<string, string> = {
-  io: 'IO 输入输出',
-  vector: '矢量操作',
-  raster: '栅格操作',
-  analysis: '空间分析',
-  network: '网络分析',
-  qc: '质量检查',
-}
+const categoryLabels = computed<Record<string, string>>(() => ({
+  io: t('nodePalette.categories.io'),
+  vector: t('nodePalette.categories.vector'),
+  raster: t('nodePalette.categories.raster'),
+  analysis: t('nodePalette.categories.analysis'),
+  network: t('nodePalette.categories.network'),
+  qc: t('nodePalette.categories.qc'),
+}))
 
 const filteredCategories = computed(() => {
   const query = searchQuery.value.toLowerCase().trim()
   return store.stepCategories
     .map((cat) => ({
       ...cat,
-      label: categoryLabels[cat.name] ?? cat.label,
+      label: categoryLabels.value[cat.name] ?? cat.label,
       steps: query
         ? cat.steps.filter(
             (s) =>
@@ -57,7 +59,7 @@ onMounted(() => {
     <el-input
       v-model="searchQuery"
       size="small"
-      placeholder="搜索步骤…"
+      :placeholder="t('nodePalette.searchSteps')"
       clearable
       class="palette-search"
     >
@@ -93,10 +95,10 @@ onMounted(() => {
 
     <el-empty
       v-else-if="searchQuery"
-      description="无匹配步骤"
+      :description="t('nodePalette.noMatch')"
       :image-size="48"
     />
-    <el-empty v-else description="暂无可用步骤" :image-size="48" />
+    <el-empty v-else :description="t('nodePalette.noSteps')" :image-size="48" />
   </div>
 </template>
 

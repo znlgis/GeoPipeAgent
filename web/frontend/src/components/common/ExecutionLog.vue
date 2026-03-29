@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Delete } from '@element-plus/icons-vue'
 import { usePipelineStore } from '@/stores/pipelineStore'
 
 const pipelineStore = usePipelineStore()
 const logContainerRef = ref<HTMLElement | null>(null)
+const { t } = useI18n()
 
 const statusConfig = computed(() => {
   const map: Record<string, { label: string; type: 'info' | 'success' | 'warning' | 'danger'; icon: string }> = {
-    idle: { label: '空闲', type: 'info', icon: '⏸' },
-    running: { label: '运行中', type: 'warning', icon: '⏳' },
-    done: { label: '完成', type: 'success', icon: '✅' },
-    error: { label: '错误', type: 'danger', icon: '❌' },
+    idle: { label: t('executionLog.statusIdle'), type: 'info', icon: '⏸' },
+    running: { label: t('executionLog.statusRunning'), type: 'warning', icon: '⏳' },
+    done: { label: t('executionLog.statusDone'), type: 'success', icon: '✅' },
+    error: { label: t('executionLog.statusError'), type: 'danger', icon: '❌' },
   }
   return map[pipelineStore.executionStatus] ?? map.idle
 })
@@ -50,7 +52,7 @@ watch(
         <el-tag :type="statusConfig.type" size="small" effect="dark">
           {{ statusConfig.icon }} {{ statusConfig.label }}
         </el-tag>
-        <span class="title">执行日志</span>
+        <span class="title">{{ t('executionLog.title') }}</span>
       </div>
       <el-button
         size="small"
@@ -58,7 +60,7 @@ watch(
         :disabled="pipelineStore.executionLog.length === 0"
         @click="clearLog"
       >
-        清除
+        {{ t('common.clear') }}
       </el-button>
     </div>
 
@@ -68,7 +70,7 @@ watch(
         v-if="pipelineStore.executionLog.length === 0"
         class="log-empty"
       >
-        暂无日志
+        {{ t('pipeline.noLogs') }}
       </div>
       <div
         v-for="(line, index) in pipelineStore.executionLog"

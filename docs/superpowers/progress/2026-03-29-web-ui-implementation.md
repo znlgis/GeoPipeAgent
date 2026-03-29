@@ -135,7 +135,7 @@
 - [x] 优化 Vite 构建分包（manualChunks: vue-vendor, element-plus, vue-flow, ui-utils, data-utils）
 - [x] 添加 E2E 测试配置（Playwright + Chromium，含基础测试用例）
 - [x] 完善错误处理边界情况（全局异常处理器、axios 拦截器、Vue 错误处理器、输入验证）
-- [x] 添加国际化支持（vue-i18n，中文/英文双语）
+- [x] 添加国际化支持（vue-i18n，中文/英文双语，全部组件已完成 i18n 化）
 - [x] 优化 SSE 断线重连逻辑（指数退避重连，最多 3 次重试）
 - [x] 添加流水线版本管理（同名流水线自动版本递增）
 - [x] 添加暗色主题支持（CSS 自定义属性 + Element Plus 暗色模式 + localStorage 持久化）
@@ -143,6 +143,35 @@
 ## 未实现项
 
 - [ ] 添加用户认证功能（涉及安全架构设计，建议独立迭代）
+
+## 2026-03-29 i18n 完善
+
+以下组件中的硬编码中文字符串已全部替换为 `$t()` / `t()` 国际化调用：
+
+- [x] `PipelineEditor.vue` — 工具栏按钮、对话框标题、提示信息、AI 生成相关文案
+- [x] `LlmChat.vue` — 侧边栏按钮、搜索框、对话列表、空状态、消息计数
+- [x] `ConversationHistory.vue` — 表头标签、操作按钮、搜索框、空状态、导出文案
+- [x] `StepConfigPanel.vue` — 节点 ID/类型标签、参数配置标题、高级选项、执行状态
+- [x] `NodePalette.vue` — 分类标签（IO/矢量/栅格/分析/网络/质检）、搜索框、空状态
+- [x] `ChatWindow.vue` — 模式选择（对话/生成流水线/分析结果）、占位符、发送按钮、空状态
+- [x] `MessageBubble.vue` — 用户/AI 头像标签、"加载到编辑器"按钮
+- [x] `YamlPreview.vue` — 标题、复制/加载按钮、空状态
+- [x] `ExecutionLog.vue` — 状态标签（空闲/运行中/完成/错误）、清除按钮、空状态
+- [x] `useFlowEditor.ts` — 执行日志消息、验证错误信息
+- [x] `usePipeline.ts` — 删除确认对话框
+
+新增 i18n 键约 40 个，分布在以下命名空间：
+- `common.*` — 通用操作（generate、copy、clear、copiedToClipboard、copyFailed）
+- `pipeline.*` — 流水线相关（aiGenerateHint、saveFailed、importSuccess、importFailed、aiLoadedSuccess 等）
+- `chat.*` — 对话相关（modeChat、modePipeline、modeAnalyze、*Placeholder、userAvatar、assistantAvatar 等）
+- `history.*` — 历史记录（markdownCreatedAt、markdownUpdatedAt、userLabel、assistantLabel）
+- `nodePalette.categories.*` — 步骤分类标签
+- `stepConfig.*` — 配置面板（nodeId、executionStatus、statusIdle/Running/Success/Error）
+- `executionLog.*` — 执行日志面板
+
+其他修复：
+- [x] `format.ts` — `formatDate()` 和新增 `formatTime()` 函数现在根据应用语言设置自动选择 locale
+- [x] `MessageBubble.vue` — 时间格式化改用 `formatTime()` 以适配多语言
 
 ## 启动说明
 

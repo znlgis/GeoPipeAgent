@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { useChatStore } from '@/stores/chatStore'
 import type { ChatMessage } from '@/types/chat'
@@ -10,6 +11,7 @@ const emit = defineEmits<{
 }>()
 
 const chatStore = useChatStore()
+const { t } = useI18n()
 
 const inputText = ref('')
 const activeMode = ref<'chat' | 'pipeline' | 'analyze'>('chat')
@@ -42,7 +44,7 @@ function send() {
   if (!text) return
 
   if (!chatStore.currentConversation) {
-    ElMessage.warning('请先选择或创建一个对话')
+    ElMessage.warning(t('chat.selectConversation'))
     return
   }
 
@@ -76,7 +78,7 @@ function handleLoadYaml(yaml: string) {
   <div class="chat-window">
     <!-- Empty state -->
     <div v-if="!chatStore.currentConversation" class="empty-state">
-      <el-empty description="暂无对话">
+      <el-empty :description="t('chat.noChat')">
         <template #image>
           <span class="empty-icon">💬</span>
         </template>
@@ -115,19 +117,19 @@ function handleLoadYaml(yaml: string) {
               :type="activeMode === 'chat' ? 'primary' : 'default'"
               @click="activeMode = 'chat'"
             >
-              对话
+              {{ t('chat.modeChat') }}
             </el-button>
             <el-button
               :type="activeMode === 'pipeline' ? 'primary' : 'default'"
               @click="activeMode = 'pipeline'"
             >
-              生成流水线
+              {{ t('chat.modePipeline') }}
             </el-button>
             <el-button
               :type="activeMode === 'analyze' ? 'primary' : 'default'"
               @click="activeMode = 'analyze'"
             >
-              分析结果
+              {{ t('chat.modeAnalyze') }}
             </el-button>
           </el-button-group>
         </div>
@@ -139,10 +141,10 @@ function handleLoadYaml(yaml: string) {
             :autosize="{ minRows: 1, maxRows: 4 }"
             :placeholder="
               activeMode === 'chat'
-                ? '输入消息...'
+                ? t('chat.chatPlaceholder')
                 : activeMode === 'pipeline'
-                  ? '描述你想要的流水线...'
-                  : '粘贴执行结果进行分析...'
+                  ? t('chat.pipelinePlaceholder')
+                  : t('chat.analyzePlaceholder')
             "
             :disabled="chatStore.isStreaming"
             @keydown="handleKeydown"
@@ -153,7 +155,7 @@ function handleLoadYaml(yaml: string) {
             :loading="chatStore.isStreaming"
             @click="send"
           >
-            发送
+            {{ t('chat.send') }}
           </el-button>
         </div>
       </div>

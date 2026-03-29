@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   VideoPlay,
   CircleCheck,
@@ -20,6 +21,7 @@ import YamlPreview from '@/components/common/YamlPreview.vue'
 
 const pipelineStore = usePipelineStore()
 const chatStore = useChatStore()
+const { t } = useI18n()
 const {
   isExecuting,
   showAiDialog,
@@ -50,7 +52,7 @@ async function handleRun() {
 async function handleValidate() {
   const result = await validatePipeline()
   if (result.valid) {
-    ElMessage.success('流水线验证通过')
+    ElMessage.success(t('pipeline.validationSuccess'))
   } else {
     ElMessage.error(result.errors.join('; '))
   }
@@ -63,15 +65,15 @@ function handleOpenSave() {
 
 async function handleSave() {
   if (!saveName.value.trim()) {
-    ElMessage.warning('请输入流水线名称')
+    ElMessage.warning(t('pipeline.enterName'))
     return
   }
   try {
     await savePipeline(saveName.value.trim())
-    ElMessage.success('保存成功')
+    ElMessage.success(t('pipeline.savedSuccess'))
     showSaveDialog.value = false
   } catch {
-    ElMessage.error('保存失败')
+    ElMessage.error(t('pipeline.saveFailed'))
   }
 }
 
@@ -85,9 +87,9 @@ async function handleFileChange(event: Event) {
   if (!file) return
   try {
     await importYamlFile(file)
-    ElMessage.success('导入成功')
+    ElMessage.success(t('pipeline.importSuccess'))
   } catch {
-    ElMessage.error('导入失败，请检查文件格式')
+    ElMessage.error(t('pipeline.importFailed'))
   }
   input.value = ''
 }
@@ -99,7 +101,7 @@ function handleExport() {
 async function handleAiGenerate() {
   const prompt = aiPrompt.value.trim()
   if (!prompt) {
-    ElMessage.warning('请输入流水线描述')
+    ElMessage.warning(t('pipeline.enterPrompt'))
     return
   }
   aiGenerating.value = true
@@ -113,11 +115,11 @@ async function handleAiGenerate() {
       const yaml = chatStore.streamingContent || extractYamlFromContent()
       if (yaml) {
         loadFromYaml(yaml)
-        ElMessage.success('AI 流水线已加载到编辑器')
+        ElMessage.success(t('pipeline.aiLoadedSuccess'))
         showAiDialog.value = false
         aiPrompt.value = ''
       } else {
-        ElMessage.warning('未能从 AI 响应中提取有效 YAML')
+        ElMessage.warning(t('pipeline.noValidYaml'))
       }
     }
   }, 300)
@@ -162,22 +164,22 @@ function handleLoadYaml(yaml: string) {
           :loading="isExecuting"
           @click="handleRun"
         >
-          运行
+          {{ t('pipeline.run') }}
         </el-button>
         <el-button :icon="CircleCheck" @click="handleValidate">
-          验证
+          {{ t('pipeline.validate') }}
         </el-button>
         <el-button :icon="FolderOpened" @click="handleOpenSave">
-          保存
+          {{ t('common.save') }}
         </el-button>
         <el-button :icon="MagicStick" @click="showAiDialog = true">
-          AI生成
+          {{ t('pipeline.aiGenerate') }}
         </el-button>
         <el-button :icon="Upload" @click="handleImportClick">
-          导入
+          {{ t('common.import') }}
         </el-button>
         <el-button :icon="Download" @click="handleExport">
-          导出
+          {{ t('common.export') }}
         </el-button>
       </el-space>
       <input
@@ -205,10 +207,10 @@ function handleLoadYaml(yaml: string) {
     <!-- Bottom section: tabs -->
     <div class="bottom-panel">
       <el-tabs v-model="activeBottomTab" class="bottom-tabs">
-        <el-tab-pane label="执行日志" name="log">
+        <el-tab-pane :label="t('pipeline.executionLog')" name="log">
           <ExecutionLog />
         </el-tab-pane>
-        <el-tab-pane label="YAML 预览" name="yaml">
+        <el-tab-pane :label="t('pipeline.yamlPreview')" name="yaml">
           <YamlPreview @load-yaml="handleLoadYaml" />
         </el-tab-pane>
       </el-tabs>
@@ -217,7 +219,7 @@ function handleLoadYaml(yaml: string) {
     <!-- AI Generate Dialog -->
     <el-dialog
       v-model="showAiDialog"
-      title="AI 生成流水线"
+      :title="t('pipeline.aiGenerateTitle')"
       width="560px"
       :close-on-click-modal="false"
     >
@@ -225,30 +227,30 @@ function handleLoadYaml(yaml: string) {
         v-model="aiPrompt"
         type="textarea"
         :rows="6"
-        placeholder="用自然语言描述你想要的流水线，例如：&#10;读取 shapefile 数据，进行坐标转换到 EPSG:4326，然后裁剪到指定范围，最后导出为 GeoJSON"
+        :placeholder="t('pipeline.aiGenerateHint')"
       />
       <template #footer>
-        <el-button @click="showAiDialog = false">取消</el-button>
+        <el-button @click="showAiDialog = false">{{ t('common.cancel') }}</el-button>
         <el-button
           type="primary"
           :loading="aiGenerating"
           @click="handleAiGenerate"
         >
-          生成
+          {{ t('common.generate') }}
         </el-button>
       </template>
     </el-dialog>
 
     <!-- Save Dialog -->
-    <el-dialog v-model="showSaveDialog" title="保存流水线" width="420px">
+    <el-dialog v-model="showSaveDialog" :title="t('pipeline.savePipeline')" width="420px">
       <el-input
         v-model="saveName"
-        placeholder="请输入流水线名称"
+        :placeholder="t('pipeline.enterName')"
         @keydown.enter="handleSave"
       />
       <template #footer>
-        <el-button @click="showSaveDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleSave">保存</el-button>
+        <el-button @click="showSaveDialog = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="handleSave">{{ t('common.save') }}</el-button>
       </template>
     </el-dialog>
   </el-container>

@@ -1,10 +1,12 @@
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { usePipelineStore } from '@/stores/pipelineStore'
 import { createSSEConnection } from '@/utils/sseClient'
 import axios from 'axios'
 
 export function useFlowEditor() {
   const store = usePipelineStore()
+  const { t } = useI18n()
   const isExecuting = ref(false)
   const showAiDialog = ref(false)
   const aiPrompt = ref('')
@@ -31,11 +33,11 @@ export function useFlowEditor() {
             store.updateNodeData(data.step_id, { status: data.status })
           } else if (event === 'done') {
             store.executionStatus = 'done'
-            store.executionLog.push('✅ 流水线执行完成')
+            store.executionLog.push(t('pipeline.executionDone'))
             isExecuting.value = false
           } else if (event === 'error') {
             store.executionStatus = 'error'
-            store.executionLog.push(`❌ 错误: ${data.message}`)
+            store.executionLog.push(t('pipeline.executionError', { msg: data.message }))
             if (data.step_id) {
               store.updateNodeData(data.step_id, {
                 status: 'error',
@@ -48,7 +50,7 @@ export function useFlowEditor() {
         onError(err) {
           store.executionStatus = 'error'
           store.executionLog.push(
-            `❌ 连接错误: ${err.message || '未知错误'}`,
+            t('pipeline.connectionError', { msg: err.message || t('pipeline.unknownError') }),
           )
           isExecuting.value = false
         },
@@ -61,7 +63,7 @@ export function useFlowEditor() {
     errors: string[]
   }> {
     const yaml = store.exportToYaml()
-    if (!yaml) return { valid: false, errors: ['流水线为空'] }
+    if (!yaml) return { valid: false, errors: [t('pipeline.empty')] }
     try {
       const res = await axios.post('/api/pipeline/validate', {
         yaml_content: yaml,
@@ -70,7 +72,7 @@ export function useFlowEditor() {
     } catch (err: any) {
       return {
         valid: false,
-        errors: [err.response?.data?.detail || '验证失败'],
+        errors: [err.response?.data?.detail || t('pipeline.validationFailed')],
       }
     }
   }

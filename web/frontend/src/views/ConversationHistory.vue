@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { Search, View, Download, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import axios from 'axios'
@@ -10,6 +11,7 @@ import type { ConversationSummary, Conversation } from '@/types/chat'
 
 const chatStore = useChatStore()
 const router = useRouter()
+const { t } = useI18n()
 
 const searchQuery = ref('')
 const loading = ref(false)
@@ -35,13 +37,13 @@ function openConversation(row: ConversationSummary) {
 
 async function handleDelete(id: string) {
   try {
-    await ElMessageBox.confirm('确定要删除此对话吗？', '确认删除', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('chat.confirmDelete'), t('chat.confirmDeleteTitle'), {
+      confirmButtonText: t('common.delete'),
+      cancelButtonText: t('common.cancel'),
       type: 'warning',
     })
     await chatStore.deleteConversation(id)
-    ElMessage.success('已删除')
+    ElMessage.success(t('chat.deleted'))
   } catch {
     // User cancelled
   }
@@ -66,14 +68,14 @@ async function exportConversation(
       const lines: string[] = [
         `# ${conv.title}`,
         '',
-        `> 创建时间: ${formatDate(conv.created_at)}`,
-        `> 更新时间: ${formatDate(conv.updated_at)}`,
+        `> ${t('history.markdownCreatedAt')}: ${formatDate(conv.created_at)}`,
+        `> ${t('history.markdownUpdatedAt')}: ${formatDate(conv.updated_at)}`,
         '',
         '---',
         '',
       ]
       for (const msg of conv.messages) {
-        const roleLabel = msg.role === 'user' ? '**用户**' : '**助手**'
+        const roleLabel = msg.role === 'user' ? t('history.userLabel') : t('history.assistantLabel')
         lines.push(`### ${roleLabel}`)
         lines.push('')
         lines.push(msg.content)
@@ -91,9 +93,9 @@ async function exportConversation(
     a.download = `${conv.title || 'conversation'}.${ext}`
     a.click()
     URL.revokeObjectURL(url)
-    ElMessage.success('导出成功')
+    ElMessage.success(t('history.exportSuccess'))
   } catch {
-    ElMessage.error('导出失败')
+    ElMessage.error(t('history.exportFailed'))
   }
 }
 
@@ -113,11 +115,11 @@ async function handleRefresh() {
     <el-card shadow="never">
       <template #header>
         <div class="header">
-          <span class="header-title">历史记录</span>
+          <span class="header-title">{{ t('history.title') }}</span>
           <div class="header-actions">
             <el-input
               v-model="searchQuery"
-              placeholder="搜索对话…"
+              :placeholder="t('chat.searchConversations')"
               clearable
               size="small"
               style="width: 240px"
@@ -127,7 +129,7 @@ async function handleRefresh() {
               </template>
             </el-input>
             <el-button size="small" @click="handleRefresh">
-              刷新
+              {{ t('common.refresh') }}
             </el-button>
           </div>
         </div>
@@ -142,24 +144,24 @@ async function handleRefresh() {
         @row-click="handleRowClick"
         class="clickable-table"
       >
-        <el-table-column prop="title" label="标题" min-width="200">
+        <el-table-column prop="title" :label="t('history.tableTitle')" min-width="200">
           <template #default="{ row }">
             <span class="conv-title-text">{{ row.title }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="创建时间" width="180">
+        <el-table-column :label="t('history.createdAt')" width="180">
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="更新时间" width="180">
+        <el-table-column :label="t('history.updatedAt')" width="180">
           <template #default="{ row }">
             {{ formatDate(row.updated_at) }}
           </template>
         </el-table-column>
         <el-table-column
           prop="message_count"
-          label="消息数"
+          :label="t('history.messageCount')"
           width="100"
           align="center"
         >
@@ -167,7 +169,7 @@ async function handleRefresh() {
             <el-tag size="small" type="info">{{ row.message_count }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="240" align="center">
+        <el-table-column :label="t('history.actions')" width="240" align="center">
           <template #default="{ row }">
             <el-space>
               <el-button
@@ -177,7 +179,7 @@ async function handleRefresh() {
                 link
                 @click.stop="openConversation(row)"
               >
-                查看
+                {{ t('common.view') }}
               </el-button>
               <el-dropdown
                 trigger="click"
@@ -189,7 +191,7 @@ async function handleRefresh() {
                   link
                   @click.stop
                 >
-                  导出
+                  {{ t('common.export') }}
                 </el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
@@ -207,13 +209,13 @@ async function handleRefresh() {
                 link
                 @click.stop="handleDelete(row.id)"
               >
-                删除
+                {{ t('common.delete') }}
               </el-button>
             </el-space>
           </template>
         </el-table-column>
       </el-table>
-      <el-empty v-else-if="!loading" description="暂无历史记录" />
+      <el-empty v-else-if="!loading" :description="t('history.noHistory')" />
     </el-card>
   </div>
 </template>

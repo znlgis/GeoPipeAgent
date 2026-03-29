@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Upload } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 import type { ChatMessage } from '@/types/chat'
+import { formatTime } from '@/utils/format'
 
 const props = withDefaults(
   defineProps<{
@@ -16,6 +18,8 @@ const props = withDefaults(
 const emit = defineEmits<{
   (e: 'load-yaml', yaml: string): void
 }>()
+
+const { t } = useI18n()
 
 const md = new MarkdownIt({
   html: false,
@@ -51,12 +55,7 @@ const yamlBlocks = computed<string[]>(() => {
 })
 
 const formattedTime = computed(() => {
-  try {
-    const date = new Date(props.message.timestamp)
-    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-  } catch {
-    return ''
-  }
+  return formatTime(props.message.timestamp)
 })
 
 function handleLoadYaml(yaml: string) {
@@ -84,7 +83,7 @@ function handleLoadYaml(yaml: string) {
       <div class="bubble-wrapper">
         <div class="avatar">
           <el-avatar :size="32">
-            {{ message.role === 'user' ? '我' : 'AI' }}
+            {{ message.role === 'user' ? t('chat.userAvatar') : t('chat.assistantAvatar') }}
           </el-avatar>
         </div>
 
@@ -94,7 +93,7 @@ function handleLoadYaml(yaml: string) {
           <!-- YAML load buttons -->
           <div v-for="(yaml, idx) in yamlBlocks" :key="idx" class="yaml-action">
             <el-button size="small" type="primary" plain :icon="Upload" @click="handleLoadYaml(yaml)">
-              加载到编辑器
+              {{ t('pipeline.loadToEditor') }}
             </el-button>
           </div>
 
