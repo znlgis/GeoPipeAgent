@@ -28,7 +28,7 @@ class StepSchema(BaseModel):
     params: dict[str, StepParamSchema] = Field(
         default_factory=dict, description="Parameter definitions"
     )
-    outputs: dict[str, str] = Field(
+    outputs: dict[str, Any] = Field(
         default_factory=dict, description="Output definitions"
     )
     backends: list[str] = Field(
@@ -72,6 +72,7 @@ class PipelineInfo(BaseModel):
 
     id: str = Field(description="Pipeline identifier")
     name: str = Field(description="Pipeline name")
+    version: int = Field(default=1, description="Pipeline version number")
     created_at: str = Field(description="ISO-8601 creation timestamp")
     updated_at: str = Field(description="ISO-8601 last-update timestamp")
 
@@ -170,6 +171,12 @@ class ConversationDetail(BaseModel):
 
 
 # ── Export schemas ────────────────────────────────────────────────────────────
+
+class CreateConversationRequest(BaseModel):
+    """Request body for creating a new conversation."""
+
+    title: str = Field(default="New Conversation", description="Conversation title")
+
 
 class ExportRequest(BaseModel):
     """Request body for batch export."""

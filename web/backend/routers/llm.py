@@ -11,6 +11,7 @@ from ..config import get_llm_config, mask_api_key, save_llm_config
 from ..models.schemas import (
     ConversationDetail,
     ConversationSummary,
+    CreateConversationRequest,
     LlmAnalyzeRequest,
     LlmChatRequest,
     LlmConfigResponse,
@@ -158,6 +159,13 @@ async def list_conversations():
     return conversation_store.list_conversations()
 
 
+@router.post("/conversations", response_model=ConversationDetail)
+async def create_conversation(req: CreateConversationRequest):
+    """Create a new empty conversation."""
+    conversation = conversation_store.create_conversation(title=req.title)
+    return conversation
+
+
 @router.get("/conversations/{conversation_id}", response_model=ConversationDetail)
 async def get_conversation(conversation_id: str):
     """Get full conversation detail."""
@@ -196,6 +204,16 @@ async def get_config():
 @router.put("/config", response_model=LlmConfigResponse)
 async def update_config(req: LlmConfigUpdate):
     """Update LLM configuration."""
+    # Validate temperature range
+    if req.temperature is not None and not (0.0 <= req.temperature <= 2.0):
+        raise HTTPException(
+            status_code=400, detail="Temperature must be between 0.0 and 2.0"
+        )
+    # Validate max_tokens
+    if req.max_tokens is not None and req.max_tokens < 1:
+        raise HTTPException(
+            status_code=400, detail="Max tokens must be a positive integer"
+        )
     current = get_llm_config()
     update_data = req.model_dump(exclude_none=True)
     merged = {**current, **update_data}

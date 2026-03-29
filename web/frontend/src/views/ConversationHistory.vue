@@ -52,7 +52,7 @@ async function exportConversation(
   format: 'json' | 'markdown',
 ) {
   try {
-    const res = await axios.get<Conversation>(`/api/v1/conversations/${id}`)
+    const res = await axios.get<Conversation>(`/api/llm/conversations/${id}`)
     const conv = res.data
     let content: string
     let mimeType: string

@@ -112,7 +112,14 @@ async def execute_pipeline(req: PipelineExecuteRequest):
 @router.post("/save")
 async def save_pipeline(req: PipelineSaveRequest):
     """Save a pipeline YAML to disk."""
-    pipeline_id = pipeline_service.save_pipeline(req.name, req.yaml_content)
+    if not req.name.strip():
+        raise HTTPException(status_code=400, detail="Pipeline name cannot be empty")
+    if not req.yaml_content.strip():
+        raise HTTPException(status_code=400, detail="Pipeline YAML content cannot be empty")
+    try:
+        pipeline_id = pipeline_service.save_pipeline(req.name.strip(), req.yaml_content)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to save pipeline: {exc}")
     return {"id": pipeline_id, "message": "Pipeline saved"}
 
 
@@ -129,3 +136,12 @@ async def get_pipeline(pipeline_id: str):
     if result is None:
         raise HTTPException(status_code=404, detail="Pipeline not found")
     return result
+
+
+@router.delete("/{pipeline_id}")
+async def delete_pipeline(pipeline_id: str):
+    """Delete a saved pipeline by id."""
+    deleted = pipeline_service.delete_pipeline(pipeline_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    return {"message": "Pipeline deleted"}
