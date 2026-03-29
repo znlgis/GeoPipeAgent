@@ -1,0 +1,137 @@
+"""OpenAI-compatible LLM service with async streaming."""
+from __future__ import annotations
+
+import json
+import logging
+from typing import Any, AsyncGenerator
+
+import openai
+
+from geopipe_agent.steps.registry import list_all
+
+logger = logging.getLogger(__name__)
+
+# ── System prompt builder ─────────────────────────────────────────────────────
+
+_STEPS_CACHE: str | None = None
+
+
+def _steps_reference() -> str:
+    """Build a compact text reference of all registered pipeline steps."""
+    global _STEPS_CACHE
+    if _STEPS_CACHE is None:
+        parts: list[str] = []
+        for step in list_all():
+            params = ", ".join(
+                f"{k}: {v.get('type', 'any')}" for k, v in step.params.items()
+            )
+            parts.append(f"- {step.id}({params})  # {step.description}")
+        _STEPS_CACHE = "\n".join(parts)
+    return _STEPS_CACHE
+
+
+_BASE_SYSTEM_PROMPT = (
+    "You are GeoPipeAgent Assistant, an expert in GIS data processing pipelines. "
+    "You help users build, understand, and debug YAML-based geospatial pipelines."
+)
+
+_MODE_PROMPTS: dict[str, str] = {
+    "chat": (
+        "Answer questions about GIS processing, explain pipeline steps, "
+        "and assist with troubleshooting."
+    ),
+    "generate": (
+        "Generate a valid GeoPipeAgent YAML pipeline from the user's natural-language description. "
+        "Output ONLY the YAML inside a ```yaml code block.  "
+        "Use ONLY the steps listed in the reference below."
+    ),
+    "analyze": (
+        "Analyze the provided pipeline execution report. "
+        "Summarize successes and failures, suggest fixes, "
+        "and highlight any performance concerns."
+    ),
+}
+
+
+def build_system_prompt(mode: str = "chat", extra: str = "") -> str:
+    """Assemble a system prompt for the given interaction *mode*."""
+    prompt_parts = [
+        _BASE_SYSTEM_PROMPT,
+        "",
+        _MODE_PROMPTS.get(mode, _MODE_PROMPTS["chat"]),
+        "",
+        "## Available Pipeline Steps",
+        _steps_reference(),
+    ]
+    if extra:
+        prompt_parts.extend(["", "## Additional Instructions", extra])
+    return "\n".join(prompt_parts)
+
+
+# ── Streaming helpers ─────────────────────────────────────────────────────────
+
+
+def _build_client(config: dict[str, Any]) -> openai.AsyncOpenAI:
+    return openai.AsyncOpenAI(
+        api_key=config.get("api_key", ""),
+        base_url=config.get("base_url", "https://api.openai.com/v1"),
+    )
+
+
+async def stream_chat(
+    messages: list[dict[str, str]],
+    config: dict[str, Any],
+    mode: str = "chat",
+) -> AsyncGenerator[str, None]:
+    """Stream chat completion chunks from the LLM.
+
+    Yields text deltas suitable for SSE forwarding.
+    """
+    client = _build_client(config)
+    system_prompt = build_system_prompt(
+        mode=mode, extra=config.get("system_prompt_extra", "")
+    )
+
+    full_messages = [{"role": "system", "content": system_prompt}, *messages]
+
+    try:
+        stream = await client.chat.completions.create(
+            model=config.get("model", "gpt-4"),
+            messages=full_messages,
+            temperature=config.get("temperature", 0.7),
+            max_tokens=config.get("max_tokens", 4096),
+            stream=True,
+        )
+        async for chunk in stream:
+            delta = chunk.choices[0].delta if chunk.choices else None
+            if delta and delta.content:
+                yield delta.content
+    except openai.APIError as exc:
+        logger.error("OpenAI API error: %s", exc)
+        yield "\n\n[Error communicating with LLM. Please check your API key and configuration.]"
+
+
+async def generate_pipeline(
+    description: str,
+    config: dict[str, Any],
+) -> AsyncGenerator[str, None]:
+    """Stream pipeline YAML generation from a natural-language description."""
+    messages = [{"role": "user", "content": description}]
+    async for chunk in stream_chat(messages, config, mode="generate"):
+        yield chunk
+
+
+async def analyze_result(
+    report: dict[str, Any],
+    config: dict[str, Any],
+) -> AsyncGenerator[str, None]:
+    """Stream analysis of a pipeline execution report."""
+    report_text = json.dumps(report, indent=2, default=str)
+    messages = [
+        {
+            "role": "user",
+            "content": f"Please analyze this pipeline execution report:\n\n```json\n{report_text}\n```",
+        }
+    ]
+    async for chunk in stream_chat(messages, config, mode="analyze"):
+        yield chunk
