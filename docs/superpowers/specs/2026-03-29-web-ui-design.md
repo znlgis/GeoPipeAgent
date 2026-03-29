@@ -127,52 +127,81 @@ GeoPipeAgent/
 
 ### 4.1 YAML ↔ DAG 节点模型映射
 
-现有 YAML 流水线是步骤序列，每个步骤通过 `$step_id` 引用前序输出。需双向映射为 Vue Flow 的节点/边模型。
+现有 YAML 流水线是步骤序列，每个步骤通过 `$step_id.output` 引用前序输出。需双向映射为 Vue Flow 的节点/边模型。
 
-**YAML 示例（现有格式）：**
+**引擎实际 YAML 格式：**
+
+- 步骤使用 `use` 字段（非 `type`）指定步骤类型，值为命名空间格式的 registry ID（如 `io.read_vector`、`vector.buffer`）
+- 步骤引用格式为 `$step_id.output` 或 `$step_id.stats`（带属性访问）
+- 变量引用格式为 `${var_name}`
+- 步骤还支持 `when`（条件执行）、`on_error`（错误策略：fail/skip/retry）、`backend`（指定后端）等字段
+- 流水线级别支持 `description`、`crs`、`variables`、`outputs` 等字段
+
+**YAML 示例（引擎实际格式，参考 cookbook/buffer-analysis.yaml）：**
 
 ```yaml
 pipeline:
-  name: buffer_analysis
+  name: "缓冲区分析"
+  description: "对道路数据进行缓冲区分析并输出结果"
+  variables:
+    input_path: "data/roads.shp"
+    buffer_dist: 500
   steps:
-    - id: read_input
-      type: read_vector
+    - id: load-roads
+      use: io.read_vector             # ← 字段名是 use，值是 registry ID
       params:
-        path: "/data/buildings.shp"
-    - id: buffer_1
-      type: buffer
+        path: "${input_path}"         # ← 变量引用
+    - id: buffer-analysis
+      use: vector.buffer
       params:
-        input: $read_input       # ← 这就是一条边
-        distance: 500
-        unit: m
-    - id: save_result
-      type: write_vector
+        input: "$load-roads.output"   # ← 步骤引用（$step_id.output）→ 这就是一条边
+        distance: "${buffer_dist}"
+    - id: save-result
+      use: io.write_vector
       params:
-        input: $buffer_1         # ← 又一条边
-        path: "/output/buffered.shp"
+        input: "$buffer-analysis.output"  # ← 又一条边
+        path: "output/road_buffer.geojson"
+  outputs:
+    result: "$save-result.output"
+    stats: "$buffer-analysis.stats"
 ```
 
 **映射为 Vue Flow 模型：**
 
 ```typescript
 // types/pipeline.ts
+
+/** 流水线级别元数据 */
+interface PipelineMeta {
+  name: string
+  description?: string
+  crs?: string
+  variables: Record<string, any>
+  outputs: Record<string, string>
+}
+
+/** 节点数据 */
 interface StepNode {
   id: string            // step.id → node.id
   type: 'stepNode'      // 自定义节点类型
   position: { x, y }    // 自动布局计算或用户拖拽
   data: {
-    stepType: string    // "read_vector" | "buffer" | ...
-    label: string       // 显示名称
+    use: string         // registry ID，如 "io.read_vector" | "vector.buffer"
+    label: string       // 显示名称（从 use 映射或用户自定义）
     params: Record<string, any>  // 去掉 $ref 后的纯参数
+    when?: string       // 条件表达式（可选）
+    onError?: string    // 错误策略：fail | skip | retry（默认 fail）
+    backend?: string    // 指定后端（可选，默认 auto）
     status?: 'idle' | 'running' | 'success' | 'error'
   }
 }
 
+/** 边（数据依赖） */
 interface StepEdge {
   id: string
   source: string        // 被引用的 step_id
   target: string        // 当前 step_id
-  sourceHandle: 'output'
+  sourceHandle: string  // 输出属性（如 "output" 或 "stats"）
   targetHandle: string  // 对应的参数名（如 "input"）
   label?: string        // 参数名显示
 }
@@ -181,16 +210,20 @@ interface StepEdge {
 **转换逻辑（`yamlConverter.ts`）：**
 
 - **YAML → DAG：**
-  1. 解析 steps 数组
-  2. 每个 step → 一个 Node
-  3. 扫描 params 中的 `$step_id` 引用 → 创建 Edge
-  4. 使用 dagre 库自动布局计算 position
+  1. 解析 pipeline 级别元数据（name、description、crs、variables、outputs）
+  2. 解析 steps 数组，每个 step → 一个 Node
+  3. 扫描 params 中的 `$step_id.attr` 引用 → 创建 Edge（source=step_id, sourceHandle=attr, targetHandle=param_name）
+  4. 保留 `when`、`on_error`、`backend` 等字段到 Node.data（确保无损往返转换）
+  5. 使用 dagre 库自动布局计算 position
 
 - **DAG → YAML：**
   1. 拓扑排序所有节点
-  2. 每个 Node → 一个 step 对象
-  3. 每条 Edge → 在目标节点的对应 param 中填入 `$source_id`
-  4. 序列化为 YAML
+  2. 还原 pipeline 级别元数据
+  3. 每个 Node → 一个 step 对象（`id`、`use`、`params`、`when`、`on_error`、`backend`）
+  4. 每条 Edge → 在目标节点的对应 param 中填入 `$source_id.sourceHandle`
+  5. 序列化为 YAML
+
+- **无损往返保证：** 导入的 YAML 经过 DAG 编辑后再导出，必须保留所有引擎支持的字段（包括 UI 中未提供编辑界面的字段），确保语义不变。
 
 ### 4.2 编辑器界面布局
 
@@ -229,20 +262,25 @@ interface StepEdge {
 
 ### 4.3 节点参数 Schema
 
-后端 `/api/pipeline/steps/{name}` 接口返回每个 Step 的参数描述，前端据此动态生成属性面板表单：
+后端 `/api/pipeline/steps/{name}` 接口返回每个 Step 的参数描述，前端据此动态生成属性面板表单。
+
+> **注意：** 引擎 registry 中步骤的参数类型使用引擎原始名称（如 `geodataframe`），Web API 层做显示友好映射（`geodataframe` → 前端显示为"图层"，类型标记为 `layer`）。
 
 ```json
 {
-  "name": "buffer",
+  "name": "vector.buffer",
   "category": "vector",
   "description": "对输入几何体进行缓冲区分析",
   "params": {
     "input": { "type": "layer", "required": true, "description": "输入图层" },
     "distance": { "type": "number", "required": true, "description": "缓冲距离" },
-    "unit": { "type": "enum", "values": ["m","km","deg"], "default": "m" },
     "cap_style": { "type": "enum", "values": ["round","flat","square"], "default": "round" }
   },
-  "outputs": { "output": { "type": "layer" } }
+  "outputs": {
+    "output": { "type": "layer" },
+    "stats": { "type": "dict" }
+  },
+  "supports_backend": true
 }
 ```
 
@@ -251,6 +289,7 @@ interface StepEdge {
 - `type: "number"` 渲染为数字输入框
 - `type: "string"` 渲染为文本输入框
 - `required: true` 的参数标记为必填
+- 属性面板还提供 `when`（条件表达式）、`on_error`（错误策略下拉）、`backend`（后端选择下拉）的编辑控件
 
 ## 5. LLM 双向集成
 
@@ -266,10 +305,13 @@ def build_system_prompt(mode: str) -> str:
         return f"""{base}
 用户会描述一个 GIS 分析需求，你需要生成可执行的 YAML 流水线。
 规则：
-1. 必须使用以下可用步骤：{steps_ref}
-2. YAML 格式必须符合：{schema_ref}
-3. 用 ```yaml 代码块包裹输出
-4. 每个步骤加上中文注释说明用途
+1. 步骤使用 `use` 字段指定类型，值为 registry ID（如 io.read_vector、vector.buffer）
+2. 步骤引用格式为 $step_id.output（必须带属性名）
+3. 变量引用格式为 ${{var_name}}
+4. 可用步骤列表：{steps_ref}
+5. YAML 格式必须符合：{schema_ref}
+6. 用 ```yaml 代码块包裹输出
+7. 每个步骤加上中文注释说明用途
 """
     elif mode == "analyze":
         return f"""{base}
