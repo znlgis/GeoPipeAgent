@@ -149,7 +149,7 @@ class CurlApiBackend(GeoBackend):
         """Convenience wrapper: send / receive JSON.
 
         Automatically sets ``Content-Type`` and ``Accept`` headers and
-        serialises *data* as JSON.  The response body is parsed as JSON.
+        serializes *data* as JSON.  The response body is parsed as JSON.
         """
         merged_headers = {"Content-Type": "application/json", "Accept": "application/json"}
         if headers:
