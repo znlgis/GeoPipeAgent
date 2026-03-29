@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, AsyncGenerator
 
 from fastapi import APIRouter, HTTPException
 from sse_starlette.sse import EventSourceResponse
@@ -24,6 +24,52 @@ from ..services.conversation_store import new_conversation_id
 router = APIRouter(prefix="/api/llm", tags=["llm"])
 
 
+# ── Shared SSE streaming helper ──────────────────────────────────────────────
+
+
+def _ensure_conversation(
+    conv_id: str | None, title: str,
+) -> tuple[str, dict[str, Any]]:
+    """Ensure a conversation exists, creating one if needed.
+
+    Returns (conversation_id, conversation_dict).
+    """
+    cid = conv_id or new_conversation_id()
+    conversation = conversation_store.get_conversation(cid)
+    if conversation is None:
+        conversation = conversation_store.create_conversation(title=title)
+        cid = conversation["id"]
+    return cid, conversation
+
+
+def _make_sse_response(
+    conv_id: str,
+    stream: AsyncGenerator[str, None],
+) -> EventSourceResponse:
+    """Create an SSE response that streams LLM output and persists the result."""
+
+    async def _event_generator():
+        collected: list[str] = []
+        async for chunk in stream:
+            collected.append(chunk)
+            yield {
+                "event": "chunk",
+                "data": json.dumps({"content": chunk, "conversation_id": conv_id}),
+            }
+
+        full_response = "".join(collected)
+        conversation_store.add_message(conv_id, "assistant", full_response)
+        yield {
+            "event": "done",
+            "data": json.dumps({
+                "conversation_id": conv_id,
+                "content": full_response,
+            }),
+        }
+
+    return EventSourceResponse(_event_generator())
+
+
 # ── Chat (SSE streaming) ─────────────────────────────────────────────────────
 
 
@@ -31,13 +77,7 @@ router = APIRouter(prefix="/api/llm", tags=["llm"])
 async def chat(req: LlmChatRequest):
     """Send a message and stream the response via SSE."""
     config = get_llm_config()
-    conv_id = req.conversation_id or new_conversation_id()
-
-    # Ensure conversation exists
-    conversation = conversation_store.get_conversation(conv_id)
-    if conversation is None:
-        conversation = conversation_store.create_conversation(title=req.message[:60])
-        conv_id = conversation["id"]
+    conv_id, _ = _ensure_conversation(req.conversation_id, title=req.message[:60])
 
     # Persist user message
     conversation_store.add_message(conv_id, "user", req.message)
@@ -49,26 +89,8 @@ async def chat(req: LlmChatRequest):
         for m in (conversation or {}).get("messages", [])
     ]
 
-    async def _event_generator():
-        collected: list[str] = []
-        async for chunk in llm_service.stream_chat(history, config, mode=req.mode):
-            collected.append(chunk)
-            yield {
-                "event": "chunk",
-                "data": json.dumps({"content": chunk, "conversation_id": conv_id}),
-            }
-
-        full_response = "".join(collected)
-        conversation_store.add_message(conv_id, "assistant", full_response)
-        yield {
-            "event": "done",
-            "data": json.dumps({
-                "conversation_id": conv_id,
-                "content": full_response,
-            }),
-        }
-
-    return EventSourceResponse(_event_generator())
+    stream = llm_service.stream_chat(history, config, mode=req.mode)
+    return _make_sse_response(conv_id, stream)
 
 
 # ── Pipeline generation (SSE) ────────────────────────────────────────────────
@@ -78,36 +100,14 @@ async def chat(req: LlmChatRequest):
 async def generate_pipeline(req: LlmGenerateRequest):
     """Generate a YAML pipeline from a natural-language description."""
     config = get_llm_config()
-    conv_id = req.conversation_id or new_conversation_id()
-
-    conversation = conversation_store.get_conversation(conv_id)
-    if conversation is None:
-        conversation = conversation_store.create_conversation(
-            title=f"Generate: {req.description[:50]}"
-        )
-        conv_id = conversation["id"]
+    conv_id, _ = _ensure_conversation(
+        req.conversation_id, title=f"Generate: {req.description[:50]}",
+    )
 
     conversation_store.add_message(conv_id, "user", req.description)
 
-    async def _event_generator():
-        collected: list[str] = []
-        async for chunk in llm_service.generate_pipeline(req.description, config):
-            collected.append(chunk)
-            yield {
-                "event": "chunk",
-                "data": json.dumps({"content": chunk, "conversation_id": conv_id}),
-            }
-        full_response = "".join(collected)
-        conversation_store.add_message(conv_id, "assistant", full_response)
-        yield {
-            "event": "done",
-            "data": json.dumps({
-                "conversation_id": conv_id,
-                "content": full_response,
-            }),
-        }
-
-    return EventSourceResponse(_event_generator())
+    stream = llm_service.generate_pipeline(req.description, config)
+    return _make_sse_response(conv_id, stream)
 
 
 # ── Result analysis (SSE) ────────────────────────────────────────────────────
@@ -117,37 +117,15 @@ async def generate_pipeline(req: LlmGenerateRequest):
 async def analyze_result(req: LlmAnalyzeRequest):
     """Analyze a pipeline execution report."""
     config = get_llm_config()
-    conv_id = req.conversation_id or new_conversation_id()
-
-    conversation = conversation_store.get_conversation(conv_id)
-    if conversation is None:
-        conversation = conversation_store.create_conversation(title="Result Analysis")
-        conv_id = conversation["id"]
+    conv_id, _ = _ensure_conversation(req.conversation_id, title="Result Analysis")
 
     report_summary = json.dumps(req.report, indent=2, default=str)
     conversation_store.add_message(
         conv_id, "user", f"Analyze this report:\n```json\n{report_summary}\n```"
     )
 
-    async def _event_generator():
-        collected: list[str] = []
-        async for chunk in llm_service.analyze_result(req.report, config):
-            collected.append(chunk)
-            yield {
-                "event": "chunk",
-                "data": json.dumps({"content": chunk, "conversation_id": conv_id}),
-            }
-        full_response = "".join(collected)
-        conversation_store.add_message(conv_id, "assistant", full_response)
-        yield {
-            "event": "done",
-            "data": json.dumps({
-                "conversation_id": conv_id,
-                "content": full_response,
-            }),
-        }
-
-    return EventSourceResponse(_event_generator())
+    stream = llm_service.analyze_result(req.report, config)
+    return _make_sse_response(conv_id, stream)
 
 
 # ── Conversation management ───────────────────────────────────────────────────

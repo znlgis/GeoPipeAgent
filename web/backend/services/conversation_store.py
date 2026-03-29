@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +15,18 @@ from typing import Any
 from ..config import CONVERSATIONS_DIR
 
 logger = logging.getLogger(__name__)
+
+# Per-conversation locks to prevent concurrent writes to the same file
+_locks: dict[str, threading.Lock] = {}
+_locks_guard = threading.Lock()
+
+
+def _get_lock(conversation_id: str) -> threading.Lock:
+    """Get or create a lock for a specific conversation."""
+    with _locks_guard:
+        if conversation_id not in _locks:
+            _locks[conversation_id] = threading.Lock()
+        return _locks[conversation_id]
 
 
 def _now_iso() -> str:
@@ -83,23 +96,33 @@ def add_message(
     metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Append a message and return the updated conversation."""
-    conversation = get_conversation(conversation_id)
-    if conversation is None:
-        conversation = create_conversation(title="Auto-created")
-        conversation["id"] = conversation_id
-    message: dict[str, Any] = {
-        "role": role,
-        "content": content,
-        "timestamp": _now_iso(),
-    }
-    if token_usage:
-        message["token_usage"] = token_usage
-    if metadata:
-        message["metadata"] = metadata
-    conversation["messages"].append(message)
-    conversation["updated_at"] = _now_iso()
-    _save(conversation)
-    return conversation
+    lock = _get_lock(conversation_id)
+    with lock:
+        conversation = get_conversation(conversation_id)
+        if conversation is None:
+            # Create conversation with the requested id directly to avoid orphan files
+            now = _now_iso()
+            conversation = {
+                "id": conversation_id,
+                "title": "Auto-created",
+                "created_at": now,
+                "updated_at": now,
+                "config": {},
+                "messages": [],
+            }
+        message: dict[str, Any] = {
+            "role": role,
+            "content": content,
+            "timestamp": _now_iso(),
+        }
+        if token_usage:
+            message["token_usage"] = token_usage
+        if metadata:
+            message["metadata"] = metadata
+        conversation["messages"].append(message)
+        conversation["updated_at"] = _now_iso()
+        _save(conversation)
+        return conversation
 
 
 def delete_conversation(conversation_id: str) -> bool:

@@ -12,6 +12,9 @@ from geopipe_agent.errors import BackendNotAvailableError
 
 _BACKEND_CLASSES = [NativePythonBackend, GdalCliBackend, QgisProcessBackend, GdalPythonBackend, PyQgisBackend]
 
+# Module-level singleton to avoid repeated backend detection
+_cached_manager: "BackendManager | None" = None
+
 
 class BackendManager:
     """Detect and manage available GIS backends."""
@@ -21,6 +24,23 @@ class BackendManager:
         self.backends: list[GeoBackend] = [
             b for b in all_backends if b.is_available()
         ]
+
+    @classmethod
+    def default(cls) -> "BackendManager":
+        """Return a cached default BackendManager instance.
+
+        Avoids repeated backend availability checks on each pipeline execution.
+        """
+        global _cached_manager
+        if _cached_manager is None:
+            _cached_manager = cls()
+        return _cached_manager
+
+    @classmethod
+    def reset_cache(cls) -> None:
+        """Clear the cached manager (useful for testing)."""
+        global _cached_manager
+        _cached_manager = None
 
     def get(self, preferred: str | None = None) -> GeoBackend:
         """Get a backend by name, or the default (first available).

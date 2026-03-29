@@ -23,6 +23,9 @@ from geopipe_agent.steps.registry import (  # noqa: E402
     list_by_category,
 )
 from geopipe_agent.engine.parser import parse_yaml  # noqa: E402
+from geopipe_agent.engine.validator import (  # noqa: E402
+    validate_pipeline as _engine_validate,
+)
 from geopipe_agent.engine.executor import (  # noqa: E402
     execute_pipeline as _engine_execute,
 )
@@ -60,12 +63,16 @@ def get_steps_by_category(category: str) -> list[dict[str, Any]]:
 def validate_pipeline(yaml_content: str) -> tuple[bool, list[str]]:
     """Validate a YAML pipeline definition.
 
+    Performs both parsing and semantic validation (step references,
+    parameter checks, etc.).
+
     Returns:
         A tuple of (is_valid, error_messages).
     """
     try:
-        parse_yaml(yaml_content)
-        return True, []
+        pipeline_def = parse_yaml(yaml_content)
+        warnings = _engine_validate(pipeline_def)
+        return True, warnings
     except Exception as exc:
         return False, [str(exc)]
 

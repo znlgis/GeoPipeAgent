@@ -25,9 +25,18 @@ class GdalCliBackend(GeoBackend):
     def is_available(self) -> bool:
         return shutil.which("ogr2ogr") is not None
 
+    # Default timeout for CLI commands (seconds)
+    _TIMEOUT = 300
+
     @staticmethod
-    def _run(cmd: list[str]) -> subprocess.CompletedProcess:
-        result = subprocess.run(cmd, capture_output=True, text=True)
+    def _run(cmd: list[str], timeout: int | None = None) -> subprocess.CompletedProcess:
+        effective_timeout = timeout or GdalCliBackend._TIMEOUT
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=effective_timeout)
+        except subprocess.TimeoutExpired as e:
+            raise RuntimeError(
+                f"GDAL CLI command timed out after {effective_timeout}s: {' '.join(cmd)}"
+            ) from e
         if result.returncode != 0:
             raise RuntimeError(
                 f"GDAL CLI command failed: {' '.join(cmd)}\n"

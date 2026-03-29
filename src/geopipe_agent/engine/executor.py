@@ -25,7 +25,7 @@ _MAX_RETRIES = 3
 def execute_pipeline(pipeline: PipelineDefinition) -> dict:
     """Execute a validated pipeline and return a JSON-serializable report."""
     context = PipelineContext(variables=pipeline.variables)
-    backend_manager = BackendManager()
+    backend_manager = BackendManager.default()
 
     step_reports: list[dict] = []
     pipeline_start = time.time()
@@ -69,12 +69,12 @@ def execute_pipeline(pipeline: PipelineDefinition) -> dict:
             )
 
         except StepExecutionError:
+            # Already wrapped with context — propagate directly
             raise
         except Exception as e:
-            step_report.update(
-                duration=round(time.time() - step_start, 3),
-                error=str(e),
-            )
+            elapsed = round(time.time() - step_start, 3)
+            step_report.update(duration=elapsed, error=str(e))
+
             if step_def.on_error == "skip":
                 step_report["status"] = "skipped"
                 context.set_output(step_def.id, StepResult())
