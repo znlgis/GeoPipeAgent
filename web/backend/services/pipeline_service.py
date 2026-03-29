@@ -166,3 +166,15 @@ def load_pipeline(pipeline_id: str) -> dict[str, Any] | None:
         meta = json.load(f)
     meta["yaml_content"] = yaml_path.read_text(encoding="utf-8")
     return meta
+
+
+def delete_pipeline(pipeline_id: str) -> bool:
+    """Delete a saved pipeline and its metadata.  Returns True if it existed."""
+    yaml_path = PIPELINES_DIR / f"{pipeline_id}.yaml"
+    meta_path = PIPELINES_DIR / f"{pipeline_id}.meta.json"
+    existed = yaml_path.exists() or meta_path.exists()
+    if yaml_path.exists():
+        yaml_path.unlink()
+    if meta_path.exists():
+        meta_path.unlink()
+    return existed

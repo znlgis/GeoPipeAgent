@@ -21,7 +21,7 @@ export const useChatStore = defineStore('chat', () => {
   async function fetchConversations() {
     try {
       const response = await axios.get<ConversationSummary[]>(
-        '/api/v1/conversations',
+        '/api/llm/conversations',
       )
       conversations.value = response.data
     } catch (error) {
@@ -32,7 +32,7 @@ export const useChatStore = defineStore('chat', () => {
   async function loadConversation(id: string) {
     try {
       const response = await axios.get<Conversation>(
-        `/api/v1/conversations/${id}`,
+        `/api/llm/conversations/${id}`,
       )
       currentConversation.value = response.data
     } catch (error) {
@@ -61,8 +61,8 @@ export const useChatStore = defineStore('chat', () => {
 
     const url =
       mode === 'pipeline'
-        ? '/api/v1/chat/pipeline'
-        : `/api/v1/conversations/${currentConversation.value.id}/messages`
+        ? '/api/llm/chat'
+        : '/api/llm/chat'
 
     activeController = createSSEConnection(
       url,
@@ -102,7 +102,7 @@ export const useChatStore = defineStore('chat', () => {
 
   async function deleteConversation(id: string) {
     try {
-      await axios.delete(`/api/v1/conversations/${id}`)
+      await axios.delete(`/api/llm/conversations/${id}`)
       conversations.value = conversations.value.filter((c) => c.id !== id)
       if (currentConversation.value?.id === id) {
         currentConversation.value = null
@@ -121,7 +121,7 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     activeController = createSSEConnection(
-      '/api/v1/chat/generate-pipeline',
+      '/api/llm/generate-pipeline',
       { description },
       {
         onMessage: (event, data) => {
@@ -153,7 +153,7 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     activeController = createSSEConnection(
-      '/api/v1/chat/analyze-result',
+      '/api/llm/analyze-result',
       { report },
       {
         onMessage: (event, data) => {

@@ -29,7 +29,7 @@ export function useLlm() {
   async function loadConfig() {
     configLoading.value = true
     try {
-      const res = await axios.get<LlmConfig>('/api/v1/llm/config')
+      const res = await axios.get<LlmConfig>('/api/llm/config')
       config.value = res.data
     } catch (err) {
       console.error('Failed to load LLM config:', err)
@@ -41,7 +41,7 @@ export function useLlm() {
   async function saveConfig(newConfig: LlmConfig) {
     configLoading.value = true
     try {
-      const res = await axios.put<LlmConfig>('/api/v1/llm/config', newConfig)
+      const res = await axios.put<LlmConfig>('/api/llm/config', newConfig)
       config.value = res.data
       return true
     } catch (err) {

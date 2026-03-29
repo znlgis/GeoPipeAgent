@@ -12,7 +12,7 @@ export function usePipeline() {
   async function loadSavedPipelines() {
     loading.value = true
     try {
-      const res = await axios.get<PipelineInfo[]>('/api/v1/pipelines')
+      const res = await axios.get<PipelineInfo[]>('/api/pipeline/list')
       savedPipelines.value = res.data
     } catch (err) {
       console.error('Failed to load pipelines:', err)
@@ -25,7 +25,7 @@ export function usePipeline() {
     loading.value = true
     try {
       const res = await axios.get<{ yaml_content: string }>(
-        `/api/v1/pipelines/${id}`,
+        `/api/pipeline/${id}`,
       )
       store.loadFromYaml(res.data.yaml_content)
     } catch (err) {
@@ -42,7 +42,7 @@ export function usePipeline() {
         cancelButtonText: '取消',
         type: 'warning',
       })
-      await axios.delete(`/api/v1/pipelines/${id}`)
+      await axios.delete(`/api/pipeline/${id}`)
       savedPipelines.value = savedPipelines.value.filter((p) => p.id !== id)
     } catch (err) {
       // User cancelled or request failed — nothing to do on cancel

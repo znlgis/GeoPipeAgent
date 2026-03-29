@@ -171,6 +171,12 @@ class ConversationDetail(BaseModel):
 
 # ── Export schemas ────────────────────────────────────────────────────────────
 
+class CreateConversationRequest(BaseModel):
+    """Request body for creating a new conversation."""
+
+    title: str = Field(default="New Conversation", description="Conversation title")
+
+
 class ExportRequest(BaseModel):
     """Request body for batch export."""
 

@@ -129,3 +129,12 @@ async def get_pipeline(pipeline_id: str):
     if result is None:
         raise HTTPException(status_code=404, detail="Pipeline not found")
     return result
+
+
+@router.delete("/{pipeline_id}")
+async def delete_pipeline(pipeline_id: str):
+    """Delete a saved pipeline by id."""
+    deleted = pipeline_service.delete_pipeline(pipeline_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+    return {"message": "Pipeline deleted"}

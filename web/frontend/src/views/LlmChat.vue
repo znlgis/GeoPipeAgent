@@ -28,7 +28,7 @@ async function createConversation() {
   try {
     // Create a new conversation via the backend
     const res = await import('axios').then((m) =>
-      m.default.post('/api/v1/conversations', { title: '新对话' }),
+      m.default.post('/api/llm/conversations', { title: '新对话' }),
     )
     const newConv = res.data
     await chatStore.fetchConversations()

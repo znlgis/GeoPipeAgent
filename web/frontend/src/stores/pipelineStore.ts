@@ -56,8 +56,15 @@ export const usePipelineStore = defineStore('pipeline', () => {
   // --- Actions ---
   async function fetchSteps() {
     try {
-      const response = await axios.get<StepSchema[]>('/api/v1/steps')
-      steps.value = response.data
+      const response = await axios.get<Record<string, StepSchema[]>>('/api/pipeline/steps')
+      // Backend returns steps grouped by category; flatten to array
+      const grouped = response.data
+      const flat: StepSchema[] = []
+      for (const arr of Object.values(grouped)) {
+        flat.push(...arr)
+      }
+      steps.value = flat
+      return
     } catch (error) {
       console.error('Failed to fetch steps:', error)
     }
