@@ -6,6 +6,9 @@ import type {
   SkillContentResponse,
   SkillSettings,
   SkillGenerateResponse,
+  SkillImportRequest,
+  SkillImportUrlRequest,
+  SkillImportResponse,
 } from '@/types/skill'
 
 export const useSkillStore = defineStore('skill', () => {
@@ -14,6 +17,7 @@ export const useSkillStore = defineStore('skill', () => {
   const contents = ref<Map<string, SkillContentResponse>>(new Map())
   const isLoading = ref(false)
   const isGenerating = ref(false)
+  const isImporting = ref(false)
 
   // Skill settings for chat (persisted in localStorage)
   const skillEnabled = ref<boolean>(loadSetting('geopipe-skill-enabled', false))
@@ -118,12 +122,60 @@ export const useSkillStore = defineStore('skill', () => {
     saveSetting('geopipe-skill-modules', selectedModules.value)
   }
 
+  async function importSkill(req: SkillImportRequest): Promise<SkillImportResponse | null> {
+    try {
+      isImporting.value = true
+      const response = await axios.post<SkillImportResponse>('/api/skill/import', req)
+      // Refresh modules list and content
+      await fetchModules()
+      return response.data
+    } catch (error) {
+      console.error('Failed to import skill:', error)
+      return null
+    } finally {
+      isImporting.value = false
+    }
+  }
+
+  async function importSkillFromUrl(req: SkillImportUrlRequest): Promise<SkillImportResponse | null> {
+    try {
+      isImporting.value = true
+      const response = await axios.post<SkillImportResponse>('/api/skill/import-url', req)
+      await fetchModules()
+      return response.data
+    } catch (error) {
+      console.error('Failed to import skill from URL:', error)
+      return null
+    } finally {
+      isImporting.value = false
+    }
+  }
+
+  async function deleteExternalSkill(moduleId: string): Promise<boolean> {
+    try {
+      await axios.delete(`/api/skill/external/${moduleId}`)
+      // Remove from local state
+      contents.value.delete(moduleId)
+      const idx = selectedModules.value.indexOf(moduleId)
+      if (idx >= 0) {
+        selectedModules.value.splice(idx, 1)
+        saveSetting('geopipe-skill-modules', selectedModules.value)
+      }
+      await fetchModules()
+      return true
+    } catch (error) {
+      console.error(`Failed to delete external skill ${moduleId}:`, error)
+      return false
+    }
+  }
+
   return {
     // State
     modules,
     contents,
     isLoading,
     isGenerating,
+    isImporting,
     skillEnabled,
     selectedModules,
     // Computed
@@ -137,6 +189,9 @@ export const useSkillStore = defineStore('skill', () => {
     setSkillEnabled,
     setSelectedModules,
     toggleModule,
+    importSkill,
+    importSkillFromUrl,
+    deleteExternalSkill,
   }
 })
 

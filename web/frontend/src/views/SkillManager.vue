@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
-import { Download, Refresh, Document, CopyDocument } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Download, Refresh, Document, CopyDocument, Upload, Delete, Link } from '@element-plus/icons-vue'
 import { useSkillStore } from '@/stores/skillStore'
 
 const { t } = useI18n()
@@ -10,6 +10,15 @@ const skillStore = useSkillStore()
 
 const activeTab = ref('skill')
 const expandedModules = ref<Set<string>>(new Set())
+
+// Import dialog state
+const importDialogVisible = ref(false)
+const importTab = ref('text')
+const importName = ref('')
+const importDescription = ref('')
+const importContent = ref('')
+const importUrl = ref('')
+const fileInputRef = ref<HTMLInputElement | null>(null)
 
 onMounted(async () => {
   await skillStore.fetchModules()
@@ -75,6 +84,102 @@ function toggleExpand(moduleId: string) {
     expandedModules.value.add(moduleId)
   }
 }
+
+// ── Import handlers ──────────────────────────────────────────────────────────
+
+function openImportDialog() {
+  importTab.value = 'text'
+  importName.value = ''
+  importDescription.value = ''
+  importContent.value = ''
+  importUrl.value = ''
+  importDialogVisible.value = true
+}
+
+async function handleImportSubmit() {
+  if (!importName.value.trim()) {
+    ElMessage.warning(t('skill.importNameRequired'))
+    return
+  }
+
+  if (importTab.value === 'text' || importTab.value === 'file') {
+    if (!importContent.value.trim()) {
+      ElMessage.warning(t('skill.importContentRequired'))
+      return
+    }
+    const result = await skillStore.importSkill({
+      name: importName.value.trim(),
+      description: importDescription.value.trim(),
+      content: importContent.value.trim(),
+    })
+    if (result) {
+      ElMessage.success(t('skill.importSuccess', { name: result.name }))
+      importDialogVisible.value = false
+      await skillStore.fetchAllContent()
+    } else {
+      ElMessage.error(t('skill.importFailed'))
+    }
+  } else if (importTab.value === 'url') {
+    if (!importUrl.value.trim()) {
+      ElMessage.warning(t('skill.importUrlRequired'))
+      return
+    }
+    const result = await skillStore.importSkillFromUrl({
+      name: importName.value.trim(),
+      description: importDescription.value.trim(),
+      url: importUrl.value.trim(),
+    })
+    if (result) {
+      ElMessage.success(t('skill.importSuccess', { name: result.name }))
+      importDialogVisible.value = false
+      await skillStore.fetchAllContent()
+    } else {
+      ElMessage.error(t('skill.importFailed'))
+    }
+  }
+}
+
+function handleFileSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (!input.files || input.files.length === 0) return
+  const file = input.files[0]
+
+  // Auto-fill name from file name if empty
+  if (!importName.value.trim()) {
+    importName.value = file.name.replace(/\.(md|txt|markdown)$/i, '')
+  }
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    importContent.value = (e.target?.result as string) || ''
+  }
+  reader.readAsText(file, 'utf-8')
+  // Reset the input so re-selecting the same file triggers change
+  input.value = ''
+}
+
+async function handleDeleteExternal(moduleId: string, moduleName: string) {
+  try {
+    await ElMessageBox.confirm(
+      t('skill.deleteExternalConfirm', { name: moduleName }),
+      t('common.confirm'),
+      { type: 'warning' },
+    )
+    const success = await skillStore.deleteExternalSkill(moduleId)
+    if (success) {
+      ElMessage.success(t('skill.deleteExternalSuccess'))
+      // Switch active tab if deleted module was active
+      if (activeTab.value === moduleId) {
+        activeTab.value = 'skill'
+      }
+      await skillStore.fetchAllContent()
+    } else {
+      ElMessage.error(t('skill.deleteExternalFailed'))
+    }
+  } catch {
+    // User cancelled
+  }
+}
 </script>
 
 <template>
@@ -86,6 +191,9 @@ function toggleExpand(moduleId: string) {
         <p class="page-desc">{{ t('skill.managerDesc') }}</p>
       </div>
       <div class="header-actions">
+        <el-button :icon="Upload" @click="openImportDialog">
+          {{ t('skill.importSkill') }}
+        </el-button>
         <el-button :icon="Refresh" @click="handleGenerate" :loading="skillStore.isGenerating">
           {{ t('skill.regenerate') }}
         </el-button>
@@ -112,7 +220,23 @@ function toggleExpand(moduleId: string) {
           <div class="card-desc">{{ mod.description }}</div>
         </div>
         <div class="card-meta">
+          <el-tag
+            v-if="mod.source === 'external'"
+            size="small"
+            type="warning"
+            effect="plain"
+            class="source-tag"
+          >{{ t('skill.externalTag') }}</el-tag>
           <el-tag size="small" effect="plain">~{{ mod.token_estimate }} tokens</el-tag>
+          <el-button
+            v-if="mod.source === 'external'"
+            :icon="Delete"
+            size="small"
+            type="danger"
+            text
+            class="delete-btn"
+            @click.stop="handleDeleteExternal(mod.id, mod.name)"
+          />
         </div>
       </div>
     </div>
@@ -179,6 +303,81 @@ function toggleExpand(moduleId: string) {
         </div>
       </div>
     </div>
+
+    <!-- Import dialog -->
+    <el-dialog
+      v-model="importDialogVisible"
+      :title="t('skill.importDialogTitle')"
+      width="600px"
+      destroy-on-close
+    >
+      <el-form label-position="top">
+        <el-form-item :label="t('skill.importName')" required>
+          <el-input
+            v-model="importName"
+            :placeholder="t('skill.importNamePlaceholder')"
+          />
+        </el-form-item>
+        <el-form-item :label="t('skill.importDescription')">
+          <el-input
+            v-model="importDescription"
+            :placeholder="t('skill.importDescriptionPlaceholder')"
+          />
+        </el-form-item>
+
+        <el-tabs v-model="importTab" class="import-tabs">
+          <el-tab-pane :label="t('skill.tabText')" name="text">
+            <el-input
+              v-model="importContent"
+              type="textarea"
+              :rows="10"
+              :placeholder="t('skill.importContentPlaceholder')"
+            />
+          </el-tab-pane>
+          <el-tab-pane :label="t('skill.tabUrl')" name="url">
+            <el-input
+              v-model="importUrl"
+              :placeholder="t('skill.importUrlPlaceholder')"
+              :prefix-icon="Link"
+            />
+          </el-tab-pane>
+          <el-tab-pane :label="t('skill.tabFile')" name="file">
+            <div class="file-upload-area">
+              <input
+                ref="fileInputRef"
+                type="file"
+                accept=".md,.txt,.markdown"
+                class="hidden-file-input"
+                @change="handleFileSelect"
+              />
+              <el-button :icon="Upload" @click="fileInputRef?.click()">
+                {{ t('skill.selectFile') }}
+              </el-button>
+              <span class="file-hint">{{ t('skill.selectFileHint') }}</span>
+            </div>
+            <el-input
+              v-if="importContent && importTab === 'file'"
+              v-model="importContent"
+              type="textarea"
+              :rows="8"
+              class="file-preview"
+              readonly
+            />
+          </el-tab-pane>
+        </el-tabs>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="importDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button
+          type="primary"
+          :loading="skillStore.isImporting"
+          @click="handleImportSubmit"
+        >
+          {{ t('common.confirm') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -278,6 +477,18 @@ function toggleExpand(moduleId: string) {
 
 .card-meta {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.source-tag {
+  font-size: 11px;
+}
+
+.delete-btn {
+  padding: 2px 4px;
 }
 
 /* -- Content viewer -- */
@@ -402,5 +613,30 @@ function toggleExpand(moduleId: string) {
   font-size: 13px;
   color: var(--gp-text-muted);
   line-height: 1.5;
+}
+
+/* -- Import dialog -- */
+.import-tabs {
+  margin-top: 8px;
+}
+
+.file-upload-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.file-hint {
+  font-size: 12px;
+  color: var(--gp-text-muted);
+}
+
+.hidden-file-input {
+  display: none;
+}
+
+.file-preview {
+  margin-top: 8px;
 }
 </style>
