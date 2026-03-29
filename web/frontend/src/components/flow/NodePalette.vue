@@ -24,7 +24,7 @@ const filteredCategories = computed(() => {
   return store.stepCategories
     .map((cat) => ({
       ...cat,
-      label: categoryLabels[cat.name] ?? cat.label,
+      label: categoryLabels.value[cat.name] ?? cat.label,
       steps: query
         ? cat.steps.filter(
             (s) =>
