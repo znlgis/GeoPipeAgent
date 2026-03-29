@@ -53,12 +53,13 @@ app.include_router(pipeline.router)
 app.include_router(llm.router)
 app.include_router(export.router)
 
-# Serve frontend static files in production
-frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
-if frontend_dist.exists():
-    app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
-
 
 @app.get("/api/health")
 async def health_check():
     return {"status": "ok", "service": "GeoPipeAgent Web UI"}
+
+
+# Serve frontend static files in production (must be LAST — catches all unmatched paths)
+frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
+if frontend_dist.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")

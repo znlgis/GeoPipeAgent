@@ -28,7 +28,7 @@ class StepSchema(BaseModel):
     params: dict[str, StepParamSchema] = Field(
         default_factory=dict, description="Parameter definitions"
     )
-    outputs: dict[str, str] = Field(
+    outputs: dict[str, Any] = Field(
         default_factory=dict, description="Output definitions"
     )
     backends: list[str] = Field(
