@@ -193,8 +193,8 @@ def _estimate_tokens(content: str) -> int:
 
 
 def _sanitize_id(name: str) -> str:
-    """Generate a filesystem-safe module ID from a name."""
-    slug = re.sub(r"[^a-zA-Z0-9\u4e00-\u9fff_-]", "_", name.strip())
+    """Generate a filesystem-safe ASCII module ID from a name."""
+    slug = re.sub(r"[^a-zA-Z0-9_-]", "_", name.strip())
     slug = re.sub(r"_+", "_", slug).strip("_")
     if not slug:
         slug = "external"
@@ -257,9 +257,47 @@ def _ensure_unique_id(base_id: str) -> str:
     existing_ids = {m["id"] for m in _get_all_modules()}
     if base_id not in existing_ids:
         return base_id
-    # Append a short suffix to make it unique
-    suffix = uuid.uuid4().hex[:6]
+    # Append a suffix to make it unique (8 hex chars for ~4B combinations)
+    suffix = uuid.uuid4().hex[:8]
     return f"{base_id}-{suffix}"
+
+
+def _validate_url(url: str) -> None:
+    """Validate that a URL is safe to fetch (SSRF prevention).
+
+    Allows only http/https schemes and blocks private/internal IP addresses.
+
+    Raises:
+        HTTPException: If the URL is invalid or points to a private address.
+    """
+    import ipaddress
+    import socket
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(
+            status_code=400,
+            detail="Only http and https URLs are supported",
+        )
+
+    hostname = parsed.hostname
+    if not hostname:
+        raise HTTPException(status_code=400, detail="URL has no hostname")
+
+    # Resolve hostname and check for private/loopback addresses
+    try:
+        addr_infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        raise HTTPException(status_code=400, detail=f"Cannot resolve hostname: {hostname}")
+
+    for _family, _type, _proto, _canonname, sockaddr in addr_infos:
+        ip = ipaddress.ip_address(sockaddr[0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            raise HTTPException(
+                status_code=400,
+                detail="URLs pointing to private or internal addresses are not allowed",
+            )
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -380,9 +418,12 @@ async def import_skill_from_url(req: SkillImportUrlRequest):
     if not req.name.strip():
         raise HTTPException(status_code=400, detail="Skill name cannot be empty")
 
+    # Validate URL to prevent SSRF attacks
+    _validate_url(url)
+
     try:
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-            response = await client.get(url)
+            response = await client.get(url)  # codql[py/full-ssrf] - URL is validated above
             response.raise_for_status()
             content = response.text.strip()
     except httpx.HTTPStatusError as exc:

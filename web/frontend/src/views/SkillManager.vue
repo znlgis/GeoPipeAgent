@@ -18,6 +18,7 @@ const importName = ref('')
 const importDescription = ref('')
 const importContent = ref('')
 const importUrl = ref('')
+const fileInputRef = ref<HTMLInputElement | null>(null)
 
 onMounted(async () => {
   await skillStore.fetchModules()
@@ -343,13 +344,13 @@ async function handleDeleteExternal(moduleId: string, moduleName: string) {
           <el-tab-pane :label="t('skill.tabFile')" name="file">
             <div class="file-upload-area">
               <input
-                ref="fileInput"
+                ref="fileInputRef"
                 type="file"
                 accept=".md,.txt,.markdown"
                 class="hidden-file-input"
                 @change="handleFileSelect"
               />
-              <el-button :icon="Upload" @click="($refs.fileInput as HTMLInputElement)?.click()">
+              <el-button :icon="Upload" @click="fileInputRef?.click()">
                 {{ t('skill.selectFile') }}
               </el-button>
               <span class="file-hint">{{ t('skill.selectFileHint') }}</span>
