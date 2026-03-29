@@ -106,9 +106,15 @@ async def stream_chat(
             delta = chunk.choices[0].delta if chunk.choices else None
             if delta and delta.content:
                 yield delta.content
+    except openai.AuthenticationError as exc:
+        logger.error("OpenAI authentication error: %s", exc)
+        yield "\n\n[LLM API 认证失败，请检查 API Key 配置。]"
+    except openai.RateLimitError as exc:
+        logger.error("OpenAI rate limit error: %s", exc)
+        yield "\n\n[LLM API 请求频率超限，请稍后重试。]"
     except openai.APIError as exc:
         logger.error("OpenAI API error: %s", exc)
-        yield "\n\n[Error communicating with LLM. Please check your API key and configuration.]"
+        yield f"\n\n[LLM API 错误 ({type(exc).__name__})，请检查配置和网络连接。]"
 
 
 async def generate_pipeline(

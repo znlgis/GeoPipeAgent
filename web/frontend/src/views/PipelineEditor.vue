@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import {
   VideoPlay,
   CircleCheck,
@@ -106,9 +106,9 @@ async function handleAiGenerate() {
   chatStore.generatePipeline(prompt)
 
   // Poll for generation completion
-  const check = setInterval(() => {
+  aiPollTimer = setInterval(() => {
     if (!chatStore.isStreaming) {
-      clearInterval(check)
+      clearAiPoll()
       aiGenerating.value = false
       const yaml = chatStore.streamingContent || extractYamlFromContent()
       if (yaml) {
@@ -116,10 +116,24 @@ async function handleAiGenerate() {
         ElMessage.success('AI 流水线已加载到编辑器')
         showAiDialog.value = false
         aiPrompt.value = ''
+      } else {
+        ElMessage.warning('未能从 AI 响应中提取有效 YAML')
       }
     }
   }, 300)
 }
+
+let aiPollTimer: ReturnType<typeof setInterval> | null = null
+function clearAiPoll() {
+  if (aiPollTimer) {
+    clearInterval(aiPollTimer)
+    aiPollTimer = null
+  }
+}
+
+onBeforeUnmount(() => {
+  clearAiPoll()
+})
 
 function extractYamlFromContent(): string {
   // Try to extract YAML from the last assistant message

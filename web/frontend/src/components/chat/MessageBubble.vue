@@ -41,7 +41,7 @@ const renderedContent = computed(() => md.render(props.message.content || ''))
  * "load to editor" buttons below each one.
  */
 const yamlBlocks = computed<string[]>(() => {
-  const regex = /```yaml\s*\n([\s\S]*?)```/g
+  const regex = /```ya?ml\s*\n([\s\S]*?)```/g
   const blocks: string[] = []
   let match: RegExpExecArray | null
   while ((match = regex.exec(props.message.content || '')) !== null) {

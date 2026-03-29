@@ -5,6 +5,7 @@ import { Search, View, Download, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import axios from 'axios'
 import { useChatStore } from '@/stores/chatStore'
+import { formatDate } from '@/utils/format'
 import type { ConversationSummary, Conversation } from '@/types/chat'
 
 const chatStore = useChatStore()
@@ -94,10 +95,6 @@ async function exportConversation(
   } catch {
     ElMessage.error('导出失败')
   }
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('zh-CN')
 }
 
 function handleRowClick(row: ConversationSummary) {

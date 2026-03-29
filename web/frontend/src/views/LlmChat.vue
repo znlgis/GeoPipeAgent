@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useChatStore } from '@/stores/chatStore'
+import { formatDate } from '@/utils/format'
 import ChatWindow from '@/components/chat/ChatWindow.vue'
 
 const router = useRouter()
@@ -74,15 +75,6 @@ function handleLoadPipeline(yaml: string) {
       pipelineStore.loadFromYaml(yaml)
       ElMessage.success('流水线已加载到编辑器')
     })
-  })
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
   })
 }
 </script>
