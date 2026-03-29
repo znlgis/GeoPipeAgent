@@ -1,3 +1,10 @@
+# Runtime data (Web UI)
+data/
+
+# Frontend build artifacts and dependencies
+web/frontend/node_modules/
+web/frontend/dist/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
