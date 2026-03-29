@@ -4,10 +4,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 import ElementPlus from 'element-plus'
 import { ElMessage } from 'element-plus'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
+import enUs from 'element-plus/es/locale/lang/en'
 import 'element-plus/dist/index.css'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
 import axios from 'axios'
+import i18n, { getLocale } from './locales'
 import App from './App.vue'
 
 // ── Axios global error interceptor ──────────────────────────────────────────
@@ -15,20 +17,21 @@ import App from './App.vue'
 axios.interceptors.response.use(
   (response) => response,
   (error) => {
+    const t = i18n.global.t as (key: string) => string
     if (error.response) {
       const status = error.response.status
       const detail = error.response.data?.detail || error.response.statusText
       if (status === 401) {
-        ElMessage.error('认证失败，请检查 API Key 配置')
+        ElMessage.error(t('errors.authError'))
       } else if (status === 429) {
-        ElMessage.warning('请求过于频繁，请稍后重试')
+        ElMessage.warning(t('errors.rateLimitError'))
       } else if (status === 404) {
-        ElMessage.warning(`资源未找到: ${detail}`)
+        ElMessage.warning(`${t('errors.notFoundError')}: ${detail}`)
       } else if (status >= 500) {
-        ElMessage.error(`服务器错误: ${detail}`)
+        ElMessage.error(`${t('errors.serverError')}: ${detail}`)
       }
     } else if (error.request) {
-      ElMessage.error('网络连接失败，请检查后端服务是否启动')
+      ElMessage.error(t('errors.networkError'))
     }
     return Promise.reject(error)
   },
@@ -58,13 +61,15 @@ const router = createRouter({
 const app = createApp(App)
 app.use(createPinia())
 app.use(router)
-app.use(ElementPlus, { locale: zhCn })
+app.use(i18n)
+app.use(ElementPlus, { locale: getLocale() === 'en-US' ? enUs : zhCn })
 
 // ── Vue global error handler ────────────────────────────────────────────────
 
 app.config.errorHandler = (err, _instance, info) => {
   console.error(`[Vue Error] ${info}:`, err)
-  ElMessage.error('发生了一个意外错误，请刷新页面重试')
+  const t = i18n.global.t as (key: string) => string
+  ElMessage.error(t('errors.unexpectedError'))
 }
 
 app.mount('#app')

@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { ref, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Sunny, Moon } from '@element-plus/icons-vue'
+import { setLocale, getLocale } from './locales'
 
 const router = useRouter()
+const { t } = useI18n()
 
 function handleMenuSelect(index: string) {
   router.push(index)
@@ -33,6 +36,15 @@ onMounted(() => {
     isDark.value = true
   }
 })
+
+// --- i18n ---
+const currentLocale = ref(getLocale())
+
+function toggleLocale() {
+  const newLocale = currentLocale.value === 'zh-CN' ? 'en-US' : 'zh-CN'
+  setLocale(newLocale as 'zh-CN' | 'en-US')
+  currentLocale.value = newLocale
+}
 </script>
 
 <template>
@@ -47,9 +59,9 @@ onMounted(() => {
           class="nav-menu"
           @select="handleMenuSelect"
         >
-          <el-menu-item index="/">流程编辑器</el-menu-item>
-          <el-menu-item index="/chat">AI 对话</el-menu-item>
-          <el-menu-item index="/history">历史记录</el-menu-item>
+          <el-menu-item index="/">{{ t('nav.pipelineEditor') }}</el-menu-item>
+          <el-menu-item index="/chat">{{ t('nav.aiChat') }}</el-menu-item>
+          <el-menu-item index="/history">{{ t('nav.history') }}</el-menu-item>
         </el-menu>
         <el-button
           :icon="isDark ? Sunny : Moon"
@@ -58,6 +70,13 @@ onMounted(() => {
           class="theme-toggle"
           @click="toggleTheme"
         />
+        <el-button
+          size="small"
+          class="locale-toggle"
+          @click="toggleLocale"
+        >
+          {{ currentLocale === 'zh-CN' ? 'EN' : '中' }}
+        </el-button>
       </div>
     </el-header>
     <el-main class="app-main">
@@ -158,6 +177,11 @@ html.dark {
 
 .theme-toggle {
   margin-left: 12px;
+  flex-shrink: 0;
+}
+
+.locale-toggle {
+  margin-left: 8px;
   flex-shrink: 0;
 }
 
