@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useChatStore } from '@/stores/chatStore'
@@ -9,6 +10,7 @@ import ChatWindow from '@/components/chat/ChatWindow.vue'
 
 const router = useRouter()
 const chatStore = useChatStore()
+const { t } = useI18n()
 
 const searchQuery = ref('')
 
@@ -28,7 +30,7 @@ async function createConversation() {
   try {
     // Create a new conversation via the backend
     const res = await import('axios').then((m) =>
-      m.default.post('/api/llm/conversations', { title: '新对话' }),
+      m.default.post('/api/llm/conversations', { title: t('chat.newConversation') }),
     )
     const newConv = res.data
     await chatStore.fetchConversations()
@@ -37,13 +39,13 @@ async function createConversation() {
     // Fallback: set an empty current conversation locally
     chatStore.currentConversation = {
       id: `local-${Date.now()}`,
-      title: '新对话',
+      title: t('chat.newConversation'),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       config: {},
       messages: [],
     }
-    ElMessage.info('已创建本地对话')
+    ElMessage.info(t('chat.localCreated'))
   }
 }
 
@@ -54,13 +56,13 @@ function selectConversation(id: string) {
 async function handleDelete(id: string, event: Event) {
   event.stopPropagation()
   try {
-    await ElMessageBox.confirm('确定要删除此对话吗？', '确认删除', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
+    await ElMessageBox.confirm(t('chat.confirmDelete'), t('chat.confirmDeleteTitle'), {
+      confirmButtonText: t('common.delete'),
+      cancelButtonText: t('common.cancel'),
       type: 'warning',
     })
     await chatStore.deleteConversation(id)
-    ElMessage.success('已删除')
+    ElMessage.success(t('chat.deleted'))
   } catch {
     // User cancelled
   }
@@ -73,7 +75,7 @@ function handleLoadPipeline(yaml: string) {
     import('@/stores/pipelineStore').then(({ usePipelineStore }) => {
       const pipelineStore = usePipelineStore()
       pipelineStore.loadFromYaml(yaml)
-      ElMessage.success('流水线已加载到编辑器')
+      ElMessage.success(t('pipeline.loadedSuccess'))
     })
   })
 }
@@ -85,12 +87,12 @@ function handleLoadPipeline(yaml: string) {
     <el-aside width="280px" class="conversation-sidebar">
       <div class="sidebar-header">
         <el-button type="primary" :icon="Plus" @click="createConversation">
-          新建对话
+          {{ t('chat.newConversation') }}
         </el-button>
       </div>
       <el-input
         v-model="searchQuery"
-        placeholder="搜索对话…"
+        :placeholder="t('chat.searchConversations')"
         clearable
         size="small"
         class="sidebar-search"
@@ -105,7 +107,7 @@ function handleLoadPipeline(yaml: string) {
         >
           <div class="conv-title">{{ conv.title }}</div>
           <div class="conv-meta">
-            <span>{{ conv.message_count }} 条消息</span>
+            <span>{{ conv.message_count }} {{ t('chat.messages') }}</span>
             <span>{{ formatDate(conv.updated_at) }}</span>
           </div>
           <el-button
@@ -118,7 +120,7 @@ function handleLoadPipeline(yaml: string) {
           />
         </div>
       </div>
-      <el-empty v-else description="暂无对话" :image-size="60" />
+      <el-empty v-else :description="t('chat.noConversations')" :image-size="60" />
     </el-aside>
 
     <!-- Main area: chat window -->

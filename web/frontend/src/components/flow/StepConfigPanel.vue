@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { usePipelineStore } from '@/stores/pipelineStore'
 import type { StepNodeData, StepSchema, StepParamSchema } from '@/types/pipeline'
 
 const store = usePipelineStore()
+const { t } = useI18n()
 
 const selectedNode = computed(() => {
   if (!store.selectedNodeId) return null
@@ -50,12 +52,12 @@ function getParamValue(key: string): any {
   return nodeData.value?.params?.[key] ?? undefined
 }
 
-const statusText: Record<string, string> = {
-  idle: '空闲',
-  running: '运行中…',
-  success: '成功',
-  error: '出错',
-}
+const statusText = computed<Record<string, string>>(() => ({
+  idle: t('stepConfig.statusIdle'),
+  running: t('stepConfig.statusRunning'),
+  success: t('stepConfig.statusSuccess'),
+  error: t('stepConfig.statusError'),
+}))
 
 const statusType: Record<string, string> = {
   idle: 'info',
@@ -69,20 +71,20 @@ const statusType: Record<string, string> = {
   <div class="step-config-panel">
     <!-- Placeholder when nothing selected -->
     <div v-if="!selectedNode || !nodeData" class="empty-state">
-      <el-empty description="点击节点查看属性" :image-size="60" />
+      <el-empty :description="t('stepConfig.selectNode')" :image-size="60" />
     </div>
 
     <!-- Config form -->
     <template v-else>
       <!-- Header -->
       <div class="panel-section">
-        <div class="panel-label">节点 ID</div>
+        <div class="panel-label">{{ t('stepConfig.nodeId') }}</div>
         <el-input
           :model-value="selectedNode.id"
           size="small"
           disabled
         />
-        <div class="panel-label" style="margin-top: 8px">步骤类型</div>
+        <div class="panel-label" style="margin-top: 8px">{{ t('stepConfig.stepType') }}</div>
         <el-tag size="small" type="info">{{ nodeData.use }}</el-tag>
       </div>
 
@@ -90,7 +92,7 @@ const statusType: Record<string, string> = {
 
       <!-- Dynamic params -->
       <div class="panel-section">
-        <div class="section-title">参数配置</div>
+        <div class="section-title">{{ t('stepConfig.parameters') }}</div>
 
         <template v-if="editableParams.length > 0">
           <div
@@ -161,16 +163,16 @@ const statusType: Record<string, string> = {
           </div>
         </template>
 
-        <el-text v-else type="info" size="small">此步骤无可配置参数</el-text>
+        <el-text v-else type="info" size="small">{{ t('pipeline.noConfigurableParams') }}</el-text>
       </div>
 
       <el-divider />
 
       <!-- Advanced section -->
       <el-collapse class="advanced-collapse">
-        <el-collapse-item title="高级选项" name="advanced">
+        <el-collapse-item :title="t('stepConfig.advanced')" name="advanced">
           <div class="param-row">
-            <div class="param-label">条件 (when)</div>
+            <div class="param-label">{{ t('stepConfig.condition') }}</div>
             <el-input
               :model-value="nodeData.when ?? ''"
               size="small"
@@ -181,7 +183,7 @@ const statusType: Record<string, string> = {
           </div>
 
           <div class="param-row">
-            <div class="param-label">错误策略</div>
+            <div class="param-label">{{ t('stepConfig.errorStrategy') }}</div>
             <el-select
               :model-value="nodeData.onError ?? 'fail'"
               size="small"
@@ -195,7 +197,7 @@ const statusType: Record<string, string> = {
           </div>
 
           <div v-if="stepSchema?.supports_backend" class="param-row">
-            <div class="param-label">后端引擎</div>
+            <div class="param-label">{{ t('stepConfig.backend') }}</div>
             <el-select
               :model-value="nodeData.backend ?? 'auto'"
               size="small"
@@ -217,7 +219,7 @@ const statusType: Record<string, string> = {
 
       <!-- Execution status -->
       <div class="panel-section">
-        <div class="section-title">执行状态</div>
+        <div class="section-title">{{ t('stepConfig.executionStatus') }}</div>
         <el-tag
           :type="(statusType[nodeData.status ?? 'idle'] as any) || 'info'"
           size="small"

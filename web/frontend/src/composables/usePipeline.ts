@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { usePipelineStore } from '@/stores/pipelineStore'
 import { ElMessageBox } from 'element-plus'
 import axios from 'axios'
@@ -6,6 +7,7 @@ import type { PipelineInfo } from '@/types/pipeline'
 
 export function usePipeline() {
   const store = usePipelineStore()
+  const { t } = useI18n()
   const savedPipelines = ref<PipelineInfo[]>([])
   const loading = ref(false)
 
@@ -37,9 +39,9 @@ export function usePipeline() {
 
   async function deletePipeline(id: string) {
     try {
-      await ElMessageBox.confirm('确定要删除此流水线吗？', '确认删除', {
-        confirmButtonText: '删除',
-        cancelButtonText: '取消',
+      await ElMessageBox.confirm(t('pipeline.confirmDeletePipeline'), t('chat.confirmDeleteTitle'), {
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
         type: 'warning',
       })
       await axios.delete(`/api/pipeline/${id}`)
