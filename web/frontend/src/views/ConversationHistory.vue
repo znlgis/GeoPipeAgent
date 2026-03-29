@@ -15,14 +15,50 @@ const { t } = useI18n()
 
 const searchQuery = ref('')
 const loading = ref(false)
+const selectedRows = ref<ConversationSummary[]>([])
+
+// --- Pagination ---
+const currentPage = ref(1)
+const pageSize = ref(15)
+
+// --- Sorting ---
+const sortProp = ref('updated_at')
+const sortOrder = ref<'ascending' | 'descending'>('descending')
 
 const filteredConversations = computed(() => {
   const q = searchQuery.value.toLowerCase().trim()
-  if (!q) return chatStore.conversations
-  return chatStore.conversations.filter((c) =>
-    c.title.toLowerCase().includes(q),
-  )
+  let list = chatStore.conversations
+  if (q) {
+    list = list.filter((c) => c.title.toLowerCase().includes(q))
+  }
+  return list
 })
+
+const sortedConversations = computed(() => {
+  const list = [...filteredConversations.value]
+  list.sort((a, b) => {
+    let va: any, vb: any
+    if (sortProp.value === 'message_count') {
+      va = a.message_count ?? 0
+      vb = b.message_count ?? 0
+    } else if (sortProp.value === 'created_at') {
+      va = new Date(a.created_at).getTime()
+      vb = new Date(b.created_at).getTime()
+    } else {
+      va = new Date(a.updated_at).getTime()
+      vb = new Date(b.updated_at).getTime()
+    }
+    return sortOrder.value === 'ascending' ? va - vb : vb - va
+  })
+  return list
+})
+
+const paginatedConversations = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return sortedConversations.value.slice(start, start + pageSize.value)
+})
+
+const totalCount = computed(() => filteredConversations.value.length)
 
 onMounted(async () => {
   loading.value = true
@@ -108,15 +144,65 @@ async function handleRefresh() {
   await chatStore.fetchConversations()
   loading.value = false
 }
+
+function handleSelectionChange(rows: ConversationSummary[]) {
+  selectedRows.value = rows
+}
+
+function handleSortChange({ prop, order }: { prop: string; order: 'ascending' | 'descending' | null }) {
+  sortProp.value = prop || 'updated_at'
+  sortOrder.value = order || 'descending'
+}
+
+async function handleBatchDelete() {
+  if (selectedRows.value.length === 0) return
+  try {
+    await ElMessageBox.confirm(
+      t('history.confirmBatchDelete', { count: selectedRows.value.length }),
+      t('chat.confirmDeleteTitle'),
+      {
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
+        type: 'warning',
+      },
+    )
+    for (const row of selectedRows.value) {
+      await chatStore.deleteConversation(row.id)
+    }
+    ElMessage.success(t('history.batchDeleteSuccess', { count: selectedRows.value.length }))
+    selectedRows.value = []
+  } catch {
+    // User cancelled
+  }
+}
+
+function handlePageChange(page: number) {
+  currentPage.value = page
+}
+
+function handleSizeChange(size: number) {
+  pageSize.value = size
+  currentPage.value = 1
+}
 </script>
 
 <template>
   <div class="conversation-history">
-    <el-card shadow="never">
+    <el-card shadow="never" class="history-card">
       <template #header>
         <div class="header">
           <span class="header-title">{{ t('history.title') }}</span>
           <div class="header-actions">
+            <transition name="fade">
+              <div v-if="selectedRows.length > 0" class="batch-actions">
+                <el-tag size="small" type="info">
+                  {{ t('common.selected', { count: selectedRows.length }) }}
+                </el-tag>
+                <el-button size="small" type="danger" :icon="Delete" @click="handleBatchDelete">
+                  {{ t('common.batchDelete') }}
+                </el-button>
+              </div>
+            </transition>
             <el-input
               v-model="searchQuery"
               :placeholder="t('chat.searchConversations')"
@@ -136,25 +222,39 @@ async function handleRefresh() {
       </template>
 
       <el-table
-        v-if="filteredConversations.length > 0"
+        v-if="sortedConversations.length > 0"
         v-loading="loading"
-        :data="filteredConversations"
+        :data="paginatedConversations"
         stripe
         style="width: 100%"
-        @row-click="handleRowClick"
         class="clickable-table"
+        @row-click="handleRowClick"
+        @selection-change="handleSelectionChange"
+        @sort-change="handleSortChange"
       >
+        <el-table-column type="selection" width="40" />
         <el-table-column prop="title" :label="t('history.tableTitle')" min-width="200">
           <template #default="{ row }">
             <span class="conv-title-text">{{ row.title }}</span>
           </template>
         </el-table-column>
-        <el-table-column :label="t('history.createdAt')" width="180">
+        <el-table-column
+          prop="created_at"
+          :label="t('history.createdAt')"
+          width="180"
+          sortable="custom"
+        >
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column :label="t('history.updatedAt')" width="180">
+        <el-table-column
+          prop="updated_at"
+          :label="t('history.updatedAt')"
+          width="180"
+          sortable="custom"
+          :sort-orders="['descending', 'ascending', null]"
+        >
           <template #default="{ row }">
             {{ formatDate(row.updated_at) }}
           </template>
@@ -164,6 +264,7 @@ async function handleRefresh() {
           :label="t('history.messageCount')"
           width="100"
           align="center"
+          sortable="custom"
         >
           <template #default="{ row }">
             <el-tag size="small" type="info">{{ row.message_count }}</el-tag>
@@ -216,6 +317,20 @@ async function handleRefresh() {
         </el-table-column>
       </el-table>
       <el-empty v-else-if="!loading" :description="t('history.noHistory')" />
+
+      <!-- Pagination -->
+      <div v-if="totalCount > pageSize" class="pagination-wrapper">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 15, 25, 50]"
+          :total="totalCount"
+          layout="total, sizes, prev, pager, next"
+          small
+          @size-change="handleSizeChange"
+          @current-change="handlePageChange"
+        />
+      </div>
     </el-card>
   </div>
 </template>
@@ -224,6 +339,11 @@ async function handleRefresh() {
 .conversation-history {
   max-width: 1200px;
   margin: 0 auto;
+}
+
+.history-card {
+  background: var(--gp-bg-primary);
+  transition: background var(--gp-transition);
 }
 
 .header {
@@ -235,9 +355,16 @@ async function handleRefresh() {
 .header-title {
   font-size: 16px;
   font-weight: 600;
+  color: var(--gp-text-primary);
 }
 
 .header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.batch-actions {
   display: flex;
   gap: 8px;
   align-items: center;
@@ -249,5 +376,21 @@ async function handleRefresh() {
 
 .conv-title-text {
   font-weight: 500;
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0 4px;
+}
+
+/* Fade transition for batch bar */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

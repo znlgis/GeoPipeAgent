@@ -2,11 +2,12 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Plus, Delete } from '@element-plus/icons-vue'
+import { Plus, Delete, Edit } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useChatStore } from '@/stores/chatStore'
 import { formatDate } from '@/utils/format'
 import ChatWindow from '@/components/chat/ChatWindow.vue'
+import axios from 'axios'
 
 const router = useRouter()
 const chatStore = useChatStore()
@@ -28,15 +29,11 @@ onMounted(() => {
 
 async function createConversation() {
   try {
-    // Create a new conversation via the backend
-    const res = await import('axios').then((m) =>
-      m.default.post('/api/llm/conversations', { title: t('chat.newConversation') }),
-    )
+    const res = await axios.post('/api/llm/conversations', { title: t('chat.newConversation') })
     const newConv = res.data
     await chatStore.fetchConversations()
     await chatStore.loadConversation(newConv.id)
   } catch {
-    // Fallback: set an empty current conversation locally
     chatStore.currentConversation = {
       id: `local-${Date.now()}`,
       title: t('chat.newConversation'),
@@ -68,10 +65,31 @@ async function handleDelete(id: string, event: Event) {
   }
 }
 
+async function handleRename(id: string, currentTitle: string, event: Event) {
+  event.stopPropagation()
+  try {
+    const { value } = await ElMessageBox.prompt(t('chat.enterTitle'), t('chat.renameConversation'), {
+      confirmButtonText: t('common.confirm'),
+      cancelButtonText: t('common.cancel'),
+      inputValue: currentTitle,
+      inputPattern: /\S+/,
+      inputErrorMessage: t('chat.enterTitle'),
+    })
+    if (value && value.trim()) {
+      await axios.patch(`/api/llm/conversations/${id}`, { title: value.trim() })
+      await chatStore.fetchConversations()
+      if (chatStore.currentConversation?.id === id) {
+        chatStore.currentConversation.title = value.trim()
+      }
+      ElMessage.success(t('chat.renameSuccess'))
+    }
+  } catch {
+    // User cancelled or API error
+  }
+}
+
 function handleLoadPipeline(yaml: string) {
-  // Navigate to the editor and load the YAML
   router.push('/').then(() => {
-    // The pipeline store is shared; import it and load
     import('@/stores/pipelineStore').then(({ usePipelineStore }) => {
       const pipelineStore = usePipelineStore()
       pipelineStore.loadFromYaml(yaml)
@@ -98,27 +116,38 @@ function handleLoadPipeline(yaml: string) {
         class="sidebar-search"
       />
       <div v-if="filteredConversations.length > 0" class="conversation-list">
-        <div
-          v-for="conv in filteredConversations"
-          :key="conv.id"
-          class="conversation-item"
-          :class="{ active: chatStore.currentConversation?.id === conv.id }"
-          @click="selectConversation(conv.id)"
-        >
-          <div class="conv-title">{{ conv.title }}</div>
-          <div class="conv-meta">
-            <span>{{ conv.message_count }} {{ t('chat.messages') }}</span>
-            <span>{{ formatDate(conv.updated_at) }}</span>
+        <TransitionGroup name="list-fade">
+          <div
+            v-for="conv in filteredConversations"
+            :key="conv.id"
+            class="conversation-item"
+            :class="{ active: chatStore.currentConversation?.id === conv.id }"
+            @click="selectConversation(conv.id)"
+          >
+            <div class="conv-title">{{ conv.title }}</div>
+            <div class="conv-meta">
+              <span>{{ conv.message_count }} {{ t('chat.messages') }}</span>
+              <span>{{ formatDate(conv.updated_at) }}</span>
+            </div>
+            <div class="conv-actions">
+              <el-button
+                class="conv-action-btn"
+                :icon="Edit"
+                size="small"
+                text
+                @click="handleRename(conv.id, conv.title, $event)"
+              />
+              <el-button
+                class="conv-action-btn conv-delete"
+                :icon="Delete"
+                size="small"
+                text
+                type="danger"
+                @click="handleDelete(conv.id, $event)"
+              />
+            </div>
           </div>
-          <el-button
-            class="conv-delete"
-            :icon="Delete"
-            size="small"
-            text
-            type="danger"
-            @click="handleDelete(conv.id, $event)"
-          />
-        </div>
+        </TransitionGroup>
       </div>
       <el-empty v-else :description="t('chat.noConversations')" :image-size="60" />
     </el-aside>
@@ -132,7 +161,7 @@ function handleLoadPipeline(yaml: string) {
 
 <style scoped>
 .llm-chat {
-  height: calc(100vh - 100px);
+  height: calc(100vh - 88px);
 }
 
 .conversation-sidebar {
@@ -141,6 +170,7 @@ function handleLoadPipeline(yaml: string) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: background var(--gp-transition), border-color var(--gp-transition);
 }
 
 .sidebar-header {
@@ -163,6 +193,17 @@ function handleLoadPipeline(yaml: string) {
   padding: 0 8px;
 }
 
+/* List transition */
+.list-fade-enter-active,
+.list-fade-leave-active {
+  transition: all 0.25s ease;
+}
+.list-fade-enter-from,
+.list-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-12px);
+}
+
 .conversation-item {
   position: relative;
   padding: 10px 12px;
@@ -173,11 +214,11 @@ function handleLoadPipeline(yaml: string) {
 }
 
 .conversation-item:hover {
-  background: var(--gp-bg-secondary);
+  background: var(--gp-hover-bg);
 }
 
 .conversation-item.active {
-  background: #ecf5ff;
+  background: var(--gp-active-bg);
 }
 
 .conv-title {
@@ -187,7 +228,7 @@ function handleLoadPipeline(yaml: string) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding-right: 28px;
+  padding-right: 56px;
 }
 
 .conv-meta {
@@ -198,16 +239,22 @@ function handleLoadPipeline(yaml: string) {
   margin-top: 4px;
 }
 
-.conv-delete {
+.conv-actions {
   position: absolute;
   top: 8px;
   right: 4px;
+  display: flex;
+  gap: 0;
   opacity: 0;
   transition: opacity 0.15s;
 }
 
-.conversation-item:hover .conv-delete {
+.conversation-item:hover .conv-actions {
   opacity: 1;
+}
+
+.conv-action-btn {
+  padding: 4px;
 }
 
 .chat-main {

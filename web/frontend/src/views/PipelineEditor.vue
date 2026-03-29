@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   VideoPlay,
@@ -8,6 +8,10 @@ import {
   MagicStick,
   Upload,
   Download,
+  DArrowLeft,
+  DArrowRight,
+  ArrowDown,
+  ArrowUp,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { usePipelineStore } from '@/stores/pipelineStore'
@@ -40,12 +44,87 @@ const activeBottomTab = ref('log')
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const aiGenerating = ref(false)
 
+// --- Panel collapse states ---
+const showPalette = ref(true)
+const showConfig = ref(true)
+const showBottom = ref(true)
+
+// --- Resizable bottom panel ---
+const bottomPanelHeight = ref(200)
+const isResizing = ref(false)
+const resizeStartY = ref(0)
+const resizeStartH = ref(0)
+const MIN_BOTTOM_H = 100
+const MAX_BOTTOM_H = 500
+
+function startResize(event: MouseEvent) {
+  isResizing.value = true
+  resizeStartY.value = event.clientY
+  resizeStartH.value = bottomPanelHeight.value
+  document.addEventListener('mousemove', onResizeMove)
+  document.addEventListener('mouseup', stopResize)
+  document.body.style.cursor = 'row-resize'
+  document.body.style.userSelect = 'none'
+}
+
+function onResizeMove(event: MouseEvent) {
+  if (!isResizing.value) return
+  const delta = resizeStartY.value - event.clientY
+  const newHeight = Math.min(MAX_BOTTOM_H, Math.max(MIN_BOTTOM_H, resizeStartH.value + delta))
+  bottomPanelHeight.value = newHeight
+}
+
+function stopResize() {
+  isResizing.value = false
+  document.removeEventListener('mousemove', onResizeMove)
+  document.removeEventListener('mouseup', stopResize)
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+}
+
+// --- Status bar info ---
+const statusText = computed(() => {
+  return t('pipeline.statusBar', {
+    steps: pipelineStore.nodes.length,
+    edges: pipelineStore.edges.length,
+  })
+})
+
+const pipelineName = computed(() => {
+  return pipelineStore.meta.name || t('pipeline.noPipeline')
+})
+
 onMounted(() => {
   pipelineStore.fetchSteps()
+  document.addEventListener('keydown', handleGlobalKeydown)
 })
+
+onBeforeUnmount(() => {
+  clearAiPoll()
+  document.removeEventListener('keydown', handleGlobalKeydown)
+})
+
+// --- Keyboard shortcuts ---
+function handleGlobalKeydown(event: KeyboardEvent) {
+  const isCtrl = event.ctrlKey || event.metaKey
+  if (isCtrl && event.key === 's') {
+    event.preventDefault()
+    handleOpenSave()
+  } else if (isCtrl && event.key === 'Enter') {
+    event.preventDefault()
+    handleRun()
+  } else if (isCtrl && event.key === 'b') {
+    event.preventDefault()
+    showPalette.value = !showPalette.value
+  } else if (isCtrl && event.key === 'j') {
+    event.preventDefault()
+    showBottom.value = !showBottom.value
+  }
+}
 
 async function handleRun() {
   await executePipeline()
+  showBottom.value = true
   activeBottomTab.value = 'log'
 }
 
@@ -107,7 +186,6 @@ async function handleAiGenerate() {
   aiGenerating.value = true
   chatStore.generatePipeline(prompt)
 
-  // Poll for generation completion
   aiPollTimer = setInterval(() => {
     if (!chatStore.isStreaming) {
       clearAiPoll()
@@ -133,12 +211,7 @@ function clearAiPoll() {
   }
 }
 
-onBeforeUnmount(() => {
-  clearAiPoll()
-})
-
 function extractYamlFromContent(): string {
-  // Try to extract YAML from the last assistant message
   const conv = chatStore.currentConversation
   if (!conv?.messages.length) return ''
   const lastMsg = conv.messages[conv.messages.length - 1]
@@ -157,31 +230,89 @@ function handleLoadYaml(yaml: string) {
   <el-container direction="vertical" class="pipeline-editor">
     <!-- Toolbar -->
     <div class="toolbar">
-      <el-space wrap>
-        <el-button
-          type="primary"
-          :icon="VideoPlay"
-          :loading="isExecuting"
-          @click="handleRun"
+      <div class="toolbar-left">
+        <el-tooltip :content="t('pipeline.runTooltip')" placement="bottom" :show-after="500">
+          <el-button
+            type="primary"
+            :icon="VideoPlay"
+            :loading="isExecuting"
+            @click="handleRun"
+          >
+            {{ t('pipeline.run') }}
+          </el-button>
+        </el-tooltip>
+        <el-tooltip :content="t('pipeline.validateTooltip')" placement="bottom" :show-after="500">
+          <el-button :icon="CircleCheck" @click="handleValidate">
+            {{ t('pipeline.validate') }}
+          </el-button>
+        </el-tooltip>
+
+        <el-divider direction="vertical" />
+
+        <el-tooltip :content="t('pipeline.saveTooltip')" placement="bottom" :show-after="500">
+          <el-button :icon="FolderOpened" @click="handleOpenSave">
+            {{ t('common.save') }}
+          </el-button>
+        </el-tooltip>
+        <el-tooltip :content="t('pipeline.aiGenerateTooltip')" placement="bottom" :show-after="500">
+          <el-button :icon="MagicStick" @click="showAiDialog = true">
+            {{ t('pipeline.aiGenerate') }}
+          </el-button>
+        </el-tooltip>
+
+        <el-divider direction="vertical" />
+
+        <el-tooltip :content="t('pipeline.importTooltip')" placement="bottom" :show-after="500">
+          <el-button :icon="Upload" @click="handleImportClick">
+            {{ t('common.import') }}
+          </el-button>
+        </el-tooltip>
+        <el-tooltip :content="t('pipeline.exportTooltip')" placement="bottom" :show-after="500">
+          <el-button :icon="Download" @click="handleExport">
+            {{ t('common.export') }}
+          </el-button>
+        </el-tooltip>
+      </div>
+
+      <div class="toolbar-right">
+        <!-- Panel toggle buttons -->
+        <el-tooltip
+          :content="showPalette ? t('pipeline.collapsePalette') : t('pipeline.expandPalette')"
+          placement="bottom"
+          :show-after="500"
         >
-          {{ t('pipeline.run') }}
-        </el-button>
-        <el-button :icon="CircleCheck" @click="handleValidate">
-          {{ t('pipeline.validate') }}
-        </el-button>
-        <el-button :icon="FolderOpened" @click="handleOpenSave">
-          {{ t('common.save') }}
-        </el-button>
-        <el-button :icon="MagicStick" @click="showAiDialog = true">
-          {{ t('pipeline.aiGenerate') }}
-        </el-button>
-        <el-button :icon="Upload" @click="handleImportClick">
-          {{ t('common.import') }}
-        </el-button>
-        <el-button :icon="Download" @click="handleExport">
-          {{ t('common.export') }}
-        </el-button>
-      </el-space>
+          <el-button
+            :icon="showPalette ? DArrowLeft : DArrowRight"
+            size="small"
+            text
+            @click="showPalette = !showPalette"
+          />
+        </el-tooltip>
+        <el-tooltip
+          :content="showConfig ? t('pipeline.collapseConfig') : t('pipeline.expandConfig')"
+          placement="bottom"
+          :show-after="500"
+        >
+          <el-button
+            :icon="showConfig ? DArrowRight : DArrowLeft"
+            size="small"
+            text
+            @click="showConfig = !showConfig"
+          />
+        </el-tooltip>
+        <el-tooltip
+          :content="showBottom ? t('pipeline.collapseBottom') : t('pipeline.expandBottom')"
+          placement="bottom"
+          :show-after="500"
+        >
+          <el-button
+            :icon="showBottom ? ArrowDown : ArrowUp"
+            size="small"
+            text
+            @click="showBottom = !showBottom"
+          />
+        </el-tooltip>
+      </div>
       <input
         ref="fileInputRef"
         type="file"
@@ -193,27 +324,44 @@ function handleLoadYaml(yaml: string) {
 
     <!-- Middle section: palette + canvas + config -->
     <el-container class="editor-middle">
-      <el-aside width="240px" class="palette-aside">
-        <NodePalette />
-      </el-aside>
+      <transition name="slide-left">
+        <el-aside v-show="showPalette" width="240px" class="palette-aside">
+          <NodePalette />
+        </el-aside>
+      </transition>
       <el-main class="canvas-main">
         <FlowCanvas />
       </el-main>
-      <el-aside width="300px" class="config-aside">
-        <StepConfigPanel />
-      </el-aside>
+      <transition name="slide-right">
+        <el-aside v-show="showConfig" width="300px" class="config-aside">
+          <StepConfigPanel />
+        </el-aside>
+      </transition>
     </el-container>
 
-    <!-- Bottom section: tabs -->
-    <div class="bottom-panel">
-      <el-tabs v-model="activeBottomTab" class="bottom-tabs">
-        <el-tab-pane :label="t('pipeline.executionLog')" name="log">
-          <ExecutionLog />
-        </el-tab-pane>
-        <el-tab-pane :label="t('pipeline.yamlPreview')" name="yaml">
-          <YamlPreview @load-yaml="handleLoadYaml" />
-        </el-tab-pane>
-      </el-tabs>
+    <!-- Bottom section: resizable tabs -->
+    <template v-if="showBottom">
+      <div class="resize-handle" @mousedown="startResize">
+        <div class="resize-bar" />
+      </div>
+      <div class="bottom-panel" :style="{ height: bottomPanelHeight + 'px' }">
+        <el-tabs v-model="activeBottomTab" class="bottom-tabs">
+          <el-tab-pane :label="t('pipeline.executionLog')" name="log">
+            <ExecutionLog />
+          </el-tab-pane>
+          <el-tab-pane :label="t('pipeline.yamlPreview')" name="yaml">
+            <YamlPreview @load-yaml="handleLoadYaml" />
+          </el-tab-pane>
+        </el-tabs>
+      </div>
+    </template>
+
+    <!-- Status bar -->
+    <div class="status-bar">
+      <span class="status-name">{{ pipelineName }}</span>
+      <span class="status-sep">|</span>
+      <span class="status-info">{{ statusText }}</span>
+      <span class="status-shortcuts">Ctrl+S {{ t('common.save') }} &middot; Ctrl+Enter {{ t('pipeline.run') }}</span>
     </div>
 
     <!-- AI Generate Dialog -->
@@ -258,23 +406,44 @@ function handleLoadYaml(yaml: string) {
 
 <style scoped>
 .pipeline-editor {
-  height: calc(100vh - 100px);
+  height: calc(100vh - 88px);
   display: flex;
   flex-direction: column;
 }
 
+/* ── Toolbar ── */
 .toolbar {
   flex-shrink: 0;
-  padding: 8px 12px;
-  background: #fff;
-  border-bottom: 1px solid #e4e7ed;
+  padding: 6px 12px;
+  background: var(--gp-bg-primary);
+  border-bottom: 1px solid var(--gp-border-color);
   border-radius: 4px 4px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  transition: background var(--gp-transition), border-color var(--gp-transition);
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
 }
 
 .hidden-file-input {
   display: none;
 }
 
+/* ── Editor middle ── */
 .editor-middle {
   flex: 1;
   min-height: 0;
@@ -282,10 +451,11 @@ function handleLoadYaml(yaml: string) {
 }
 
 .palette-aside {
-  border-right: 1px solid #e4e7ed;
-  background: #fff;
+  border-right: 1px solid var(--gp-border-color);
+  background: var(--gp-bg-primary);
   overflow-y: auto;
   padding: 12px;
+  transition: background var(--gp-transition), border-color var(--gp-transition);
 }
 
 .canvas-main {
@@ -294,19 +464,74 @@ function handleLoadYaml(yaml: string) {
 }
 
 .config-aside {
-  border-left: 1px solid #e4e7ed;
-  background: #fff;
+  border-left: 1px solid var(--gp-border-color);
+  background: var(--gp-bg-primary);
   overflow-y: auto;
   padding: 12px;
+  transition: background var(--gp-transition), border-color var(--gp-transition);
 }
 
+/* ── Panel transitions ── */
+.slide-left-enter-active,
+.slide-left-leave-active {
+  transition: width 0.25s ease, opacity 0.2s ease, padding 0.25s ease;
+  overflow: hidden;
+}
+.slide-left-enter-from,
+.slide-left-leave-to {
+  width: 0 !important;
+  padding: 0 !important;
+  opacity: 0;
+}
+
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: width 0.25s ease, opacity 0.2s ease, padding 0.25s ease;
+  overflow: hidden;
+}
+.slide-right-enter-from,
+.slide-right-leave-to {
+  width: 0 !important;
+  padding: 0 !important;
+  opacity: 0;
+}
+
+/* ── Resize handle ── */
+.resize-handle {
+  flex-shrink: 0;
+  height: 6px;
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gp-bg-primary);
+  border-top: 1px solid var(--gp-border-color);
+  transition: background 0.15s;
+}
+
+.resize-handle:hover {
+  background: var(--gp-active-bg);
+}
+
+.resize-bar {
+  width: 40px;
+  height: 3px;
+  background: var(--gp-border-color);
+  border-radius: 2px;
+  transition: background 0.15s;
+}
+
+.resize-handle:hover .resize-bar {
+  background: #409eff;
+}
+
+/* ── Bottom panel ── */
 .bottom-panel {
   flex-shrink: 0;
-  height: 200px;
-  border-top: 1px solid #e4e7ed;
-  background: #fff;
+  background: var(--gp-bg-primary);
   display: flex;
   flex-direction: column;
+  transition: background var(--gp-transition);
 }
 
 .bottom-tabs {
@@ -327,5 +552,33 @@ function handleLoadYaml(yaml: string) {
 
 .bottom-tabs :deep(.el-tab-pane) {
   height: 100%;
+}
+
+/* ── Status bar ── */
+.status-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 12px;
+  font-size: 11px;
+  color: var(--gp-text-muted);
+  background: var(--gp-bg-primary);
+  border-top: 1px solid var(--gp-border-color);
+  transition: background var(--gp-transition), border-color var(--gp-transition);
+}
+
+.status-name {
+  font-weight: 500;
+  color: var(--gp-text-secondary);
+}
+
+.status-sep {
+  opacity: 0.3;
+}
+
+.status-shortcuts {
+  margin-left: auto;
+  opacity: 0.5;
 }
 </style>

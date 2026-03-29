@@ -21,7 +21,6 @@ function toggleTheme() {
 
 watch(isDark, (dark) => {
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
-  // Element Plus dark mode
   if (dark) {
     document.documentElement.classList.add('dark')
   } else {
@@ -51,7 +50,10 @@ function toggleLocale() {
   <el-container class="app-container">
     <el-header class="app-header">
       <div class="header-content">
-        <h1 class="app-title">GeoPipeAgent</h1>
+        <h1 class="app-title">
+          <span class="title-icon">&#9670;</span>
+          GeoPipeAgent
+        </h1>
         <el-menu
           :default-active="$route.path"
           mode="horizontal"
@@ -63,24 +65,34 @@ function toggleLocale() {
           <el-menu-item index="/chat">{{ t('nav.aiChat') }}</el-menu-item>
           <el-menu-item index="/history">{{ t('nav.history') }}</el-menu-item>
         </el-menu>
-        <el-button
-          :icon="isDark ? Sunny : Moon"
-          circle
-          size="small"
-          class="theme-toggle"
-          @click="toggleTheme"
-        />
-        <el-button
-          size="small"
-          class="locale-toggle"
-          @click="toggleLocale"
-        >
-          {{ currentLocale === 'zh-CN' ? 'EN' : '中' }}
-        </el-button>
+        <div class="header-actions">
+          <el-tooltip :content="isDark ? 'Light Mode' : 'Dark Mode'" placement="bottom">
+            <el-button
+              :icon="isDark ? Sunny : Moon"
+              circle
+              size="small"
+              class="theme-toggle"
+              @click="toggleTheme"
+            />
+          </el-tooltip>
+          <el-tooltip :content="currentLocale === 'zh-CN' ? 'English' : '中文'" placement="bottom">
+            <el-button
+              size="small"
+              class="locale-toggle"
+              @click="toggleLocale"
+            >
+              {{ currentLocale === 'zh-CN' ? 'EN' : '中' }}
+            </el-button>
+          </el-tooltip>
+        </div>
       </div>
     </el-header>
     <el-main class="app-main">
-      <router-view />
+      <router-view v-slot="{ Component }">
+        <transition name="page-fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </router-view>
     </el-main>
   </el-container>
 </template>
@@ -106,6 +118,12 @@ body,
   --gp-text-muted: #909399;
   --gp-border-color: #e4e7ed;
   --gp-border-light: #ebeef5;
+  --gp-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --gp-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.12);
+  --gp-hover-bg: #f5f7fa;
+  --gp-active-bg: #ecf5ff;
+  --gp-code-bg: #1e1e1e;
+  --gp-transition: 0.2s ease;
 }
 
 html.dark {
@@ -117,6 +135,11 @@ html.dark {
   --gp-text-muted: #a3a6ad;
   --gp-border-color: #414243;
   --gp-border-light: #363637;
+  --gp-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --gp-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --gp-hover-bg: #2a2b2c;
+  --gp-active-bg: #1a3a5c;
+  --gp-code-bg: #0d1117;
 
   /* Element Plus dark mode overrides */
   --el-bg-color: #1d1e1f;
@@ -136,6 +159,36 @@ html.dark {
   --el-mask-color: rgba(0, 0, 0, 0.8);
   color-scheme: dark;
 }
+
+/* ── Page transition ── */
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.page-fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* ── Smooth scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--gp-text-muted);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gp-text-secondary);
+}
 </style>
 
 <style scoped>
@@ -151,7 +204,10 @@ html.dark {
   background: var(--gp-bg-primary);
   border-bottom: 1px solid var(--gp-border-color);
   padding: 0 20px;
-  height: 60px;
+  height: 56px;
+  box-shadow: var(--gp-shadow-sm);
+  z-index: 100;
+  transition: background var(--gp-transition), border-color var(--gp-transition);
 }
 
 .header-content {
@@ -161,12 +217,22 @@ html.dark {
 }
 
 .app-title {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--gp-text-primary);
   margin: 0;
-  margin-right: 40px;
+  margin-right: 32px;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: -0.3px;
+  transition: color var(--gp-transition);
+}
+
+.title-icon {
+  color: #409eff;
+  font-size: 14px;
 }
 
 .nav-menu {
@@ -175,20 +241,27 @@ html.dark {
   background: transparent;
 }
 
-.theme-toggle {
-  margin-left: 12px;
+.nav-menu :deep(.el-menu-item) {
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   flex-shrink: 0;
 }
 
+.theme-toggle,
 .locale-toggle {
-  margin-left: 8px;
   flex-shrink: 0;
 }
 
 .app-main {
   flex: 1;
   overflow: auto;
-  padding: 20px;
+  padding: 16px;
   background: var(--gp-bg-secondary);
+  transition: background var(--gp-transition);
 }
 </style>

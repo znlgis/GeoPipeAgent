@@ -125,14 +125,44 @@ function onEdgesChange(changes: EdgeChange[]) {
   width: 100%;
   min-height: 500px;
   height: 100%;
-  border: 1px solid #dcdfe6;
+  border: 1px solid var(--gp-border-color, #dcdfe6);
   border-radius: 4px;
   overflow: hidden;
+  background: var(--gp-bg-secondary, #f5f7fa);
+  transition: background var(--gp-transition), border-color var(--gp-transition);
 }
 
 /* Vue Flow base styles */
 .flow-canvas-container :deep(.vue-flow) {
   width: 100%;
   height: 100%;
+}
+
+/* Dark mode overrides for vue-flow internals */
+.flow-canvas-container :deep(.vue-flow__background) {
+  fill: var(--gp-bg-secondary, #f5f7fa);
+}
+
+.flow-canvas-container :deep(.vue-flow__minimap) {
+  background: var(--gp-bg-elevated, #fff);
+  border: 1px solid var(--gp-border-color, #dcdfe6);
+  border-radius: 4px;
+  box-shadow: var(--gp-shadow-sm);
+}
+
+.flow-canvas-container :deep(.vue-flow__controls) {
+  box-shadow: var(--gp-shadow-sm);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.flow-canvas-container :deep(.vue-flow__controls-button) {
+  background: var(--gp-bg-primary, #fff);
+  border-color: var(--gp-border-color, #dcdfe6);
+  color: var(--gp-text-secondary, #606266);
+}
+
+.flow-canvas-container :deep(.vue-flow__controls-button:hover) {
+  background: var(--gp-hover-bg, #f5f7fa);
 }
 </style>

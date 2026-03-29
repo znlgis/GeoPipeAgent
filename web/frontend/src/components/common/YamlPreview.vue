@@ -87,14 +87,15 @@ function loadToEditor() {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  border-bottom: 1px solid #e4e7ed;
-  background: #fafafa;
+  border-bottom: 1px solid var(--gp-border-color);
+  background: var(--gp-bg-primary);
+  transition: background var(--gp-transition), border-color var(--gp-transition);
 }
 
 .title {
   font-size: 13px;
   font-weight: 600;
-  color: #606266;
+  color: var(--gp-text-secondary);
 }
 
 .actions {
@@ -105,7 +106,7 @@ function loadToEditor() {
 .code-container {
   flex: 1;
   overflow: auto;
-  background: #1e1e1e;
+  background: var(--gp-code-bg, #1e1e1e);
 }
 
 .code-container pre {

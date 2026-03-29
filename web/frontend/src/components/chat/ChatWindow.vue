@@ -2,6 +2,7 @@
 import { ref, computed, nextTick, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
+import { VideoPause } from '@element-plus/icons-vue'
 import { useChatStore } from '@/stores/chatStore'
 import type { ChatMessage } from '@/types/chat'
 import MessageBubble from './MessageBubble.vue'
@@ -62,6 +63,10 @@ function send() {
   inputText.value = ''
 }
 
+function handleStop() {
+  chatStore.stopStreaming()
+}
+
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault()
@@ -76,24 +81,44 @@ function handleLoadYaml(yaml: string) {
 
 <template>
   <div class="chat-window">
-    <!-- Empty state -->
+    <!-- Empty state - enhanced welcome -->
     <div v-if="!chatStore.currentConversation" class="empty-state">
-      <el-empty :description="t('chat.noChat')">
-        <template #image>
-          <span class="empty-icon">💬</span>
-        </template>
-      </el-empty>
+      <div class="welcome-card">
+        <div class="welcome-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <h3 class="welcome-title">{{ t('chat.welcomeTitle') }}</h3>
+        <p class="welcome-desc">{{ t('chat.welcomeDesc') }}</p>
+        <div class="welcome-hints">
+          <div class="hint-item">
+            <el-tag size="small" type="primary" effect="plain">{{ t('chat.modeChat') }}</el-tag>
+            <span>{{ t('chat.welcomeHint1') }}</span>
+          </div>
+          <div class="hint-item">
+            <el-tag size="small" type="success" effect="plain">{{ t('chat.modePipeline') }}</el-tag>
+            <span>{{ t('chat.welcomeHint2') }}</span>
+          </div>
+          <div class="hint-item">
+            <el-tag size="small" type="warning" effect="plain">{{ t('chat.modeAnalyze') }}</el-tag>
+            <span>{{ t('chat.welcomeHint3') }}</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <template v-else>
       <!-- Message list -->
       <div ref="messageListRef" class="message-list">
-        <MessageBubble
-          v-for="(msg, index) in messages"
-          :key="index"
-          :message="msg"
-          @load-yaml="handleLoadYaml"
-        />
+        <TransitionGroup name="msg-appear">
+          <MessageBubble
+            v-for="(msg, index) in messages"
+            :key="`msg-${index}`"
+            :message="msg"
+            @load-yaml="handleLoadYaml"
+          />
+        </TransitionGroup>
 
         <!-- Streaming partial message -->
         <MessageBubble
@@ -111,7 +136,7 @@ function handleLoadYaml(yaml: string) {
       <!-- Input area -->
       <div class="input-area">
         <!-- Mode selector -->
-        <div class="mode-selector">
+        <div class="input-controls">
           <el-button-group size="small">
             <el-button
               :type="activeMode === 'chat' ? 'primary' : 'default'"
@@ -132,6 +157,19 @@ function handleLoadYaml(yaml: string) {
               {{ t('chat.modeAnalyze') }}
             </el-button>
           </el-button-group>
+
+          <!-- Stop button -->
+          <transition name="fade">
+            <el-button
+              v-if="chatStore.isStreaming"
+              type="danger"
+              size="small"
+              :icon="VideoPause"
+              @click="handleStop"
+            >
+              {{ t('chat.stopGenerating') }}
+            </el-button>
+          </transition>
         </div>
 
         <div class="input-row">
@@ -169,33 +207,95 @@ function handleLoadYaml(yaml: string) {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  background: var(--gp-bg-secondary);
+  transition: background var(--gp-transition);
 }
 
+/* ── Welcome state ── */
 .empty-state {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.empty-icon {
-  font-size: 48px;
+  padding: 24px;
 }
 
-/* --- Message list --- */
+.welcome-card {
+  text-align: center;
+  max-width: 420px;
+}
+
+.welcome-icon {
+  color: var(--gp-text-muted);
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.welcome-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--gp-text-primary);
+  margin: 0 0 8px;
+}
+
+.welcome-desc {
+  font-size: 14px;
+  color: var(--gp-text-muted);
+  margin: 0 0 24px;
+}
+
+.welcome-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+
+.hint-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--gp-text-secondary);
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--gp-bg-primary);
+  border: 1px solid var(--gp-border-light);
+  transition: background var(--gp-transition), border-color var(--gp-transition);
+}
+
+.hint-item .el-tag {
+  flex-shrink: 0;
+}
+
+/* ── Message list ── */
 .message-list {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
 }
 
-/* --- Input area --- */
-.input-area {
-  border-top: 1px solid #e4e7ed;
-  padding: 12px 16px;
-  background: #fff;
+/* Message appear animation */
+.msg-appear-enter-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.msg-appear-enter-from {
+  opacity: 0;
+  transform: translateY(12px);
 }
 
-.mode-selector {
+/* ── Input area ── */
+.input-area {
+  border-top: 1px solid var(--gp-border-color);
+  padding: 10px 16px;
+  background: var(--gp-bg-primary);
+  transition: background var(--gp-transition), border-color var(--gp-transition);
+}
+
+.input-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 8px;
 }
 
@@ -207,5 +307,15 @@ function handleLoadYaml(yaml: string) {
 
 .input-row :deep(.el-textarea) {
   flex: 1;
+}
+
+/* Fade transition for stop button */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

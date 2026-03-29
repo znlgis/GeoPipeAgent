@@ -71,7 +71,14 @@ const statusType: Record<string, string> = {
   <div class="step-config-panel">
     <!-- Placeholder when nothing selected -->
     <div v-if="!selectedNode || !nodeData" class="empty-state">
-      <el-empty :description="t('stepConfig.selectNode')" :image-size="60" />
+      <div class="empty-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+        </svg>
+      </div>
+      <p class="empty-text">{{ t('stepConfig.selectNode') }}</p>
     </div>
 
     <!-- Config form -->
@@ -242,9 +249,22 @@ const statusType: Record<string, string> = {
 
 .empty-state {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 200px;
+  gap: 12px;
+}
+
+.empty-icon {
+  color: var(--gp-text-muted);
+  opacity: 0.4;
+}
+
+.empty-text {
+  font-size: 13px;
+  color: var(--gp-text-muted);
+  margin: 0;
 }
 
 .panel-section {
@@ -253,7 +273,7 @@ const statusType: Record<string, string> = {
 
 .panel-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--gp-text-muted);
   margin-bottom: 4px;
 }
 
@@ -261,6 +281,7 @@ const statusType: Record<string, string> = {
   font-weight: 600;
   font-size: 13px;
   margin-bottom: 8px;
+  color: var(--gp-text-primary);
 }
 
 .param-row {
@@ -269,7 +290,7 @@ const statusType: Record<string, string> = {
 
 .param-label {
   font-size: 12px;
-  color: #606266;
+  color: var(--gp-text-secondary);
   margin-bottom: 4px;
 }
 

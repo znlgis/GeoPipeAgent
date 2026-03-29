@@ -72,10 +72,16 @@ const isRunning = computed(() => props.data.status === 'running')
 .step-node {
   width: 180px;
   border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  background: var(--gp-bg-elevated, #fff);
+  box-shadow: var(--gp-shadow-md, 0 2px 8px rgba(0, 0, 0, 0.12));
   overflow: hidden;
   font-size: 12px;
+  transition: box-shadow 0.2s, transform 0.15s;
+}
+
+.step-node:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  transform: translateY(-1px);
 }
 
 .step-node__header {
@@ -123,7 +129,7 @@ const isRunning = computed(() => props.data.status === 'running')
 }
 
 .step-node__use {
-  color: #909399;
+  color: var(--gp-text-muted, #909399);
   font-size: 11px;
   display: block;
   overflow: hidden;
@@ -146,6 +152,6 @@ const isRunning = computed(() => props.data.status === 'running')
   width: 10px;
   height: 10px;
   background: #409eff;
-  border: 2px solid #fff;
+  border: 2px solid var(--gp-bg-elevated, #fff);
 }
 </style>

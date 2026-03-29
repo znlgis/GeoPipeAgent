@@ -98,8 +98,9 @@ watch(
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  border-bottom: 1px solid #e4e7ed;
-  background: #fafafa;
+  border-bottom: 1px solid var(--gp-border-color);
+  background: var(--gp-bg-primary);
+  transition: background var(--gp-transition), border-color var(--gp-transition);
 }
 
 .status-indicator {
@@ -111,14 +112,14 @@ watch(
 .title {
   font-size: 13px;
   font-weight: 600;
-  color: #606266;
+  color: var(--gp-text-secondary);
 }
 
 .log-container {
   flex: 1;
   overflow-y: auto;
   padding: 8px 0;
-  background: #1e1e1e;
+  background: var(--gp-code-bg, #1e1e1e);
   font-family: 'Fira Code', 'Consolas', monospace;
   font-size: 12px;
   line-height: 1.6;
@@ -127,12 +128,13 @@ watch(
 .log-empty {
   padding: 24px;
   text-align: center;
-  color: #909399;
+  color: var(--gp-text-muted);
 }
 
 .log-line {
   display: flex;
   padding: 1px 12px;
+  transition: background 0.1s;
 }
 .log-line:hover {
   background: rgba(255, 255, 255, 0.05);

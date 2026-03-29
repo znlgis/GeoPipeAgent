@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Upload } from '@element-plus/icons-vue'
+import { Upload, CopyDocument } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 import type { ChatMessage } from '@/types/chat'
@@ -61,6 +62,15 @@ const formattedTime = computed(() => {
 function handleLoadYaml(yaml: string) {
   emit('load-yaml', yaml)
 }
+
+async function copyMessage() {
+  try {
+    await navigator.clipboard.writeText(props.message.content || '')
+    ElMessage.success(t('chat.messageCopied'))
+  } catch {
+    // fallback
+  }
+}
 </script>
 
 <template>
@@ -102,9 +112,16 @@ function handleLoadYaml(yaml: string) {
             <span /><span /><span />
           </span>
 
-          <!-- Footer: time + token usage -->
+          <!-- Footer: time + copy + token usage -->
           <div class="bubble-footer">
             <span class="timestamp">{{ formattedTime }}</span>
+            <el-button
+              class="copy-btn"
+              size="small"
+              text
+              :icon="CopyDocument"
+              @click="copyMessage"
+            />
             <span v-if="message.token_usage" class="token-usage">
               tokens: {{ message.token_usage.prompt + message.token_usage.completion }}
             </span>
@@ -135,8 +152,8 @@ function handleLoadYaml(yaml: string) {
 /* --- System --- */
 .system-content {
   font-size: 12px;
-  color: #909399;
-  background: #f4f4f5;
+  color: var(--gp-text-muted);
+  background: var(--gp-hover-bg, #f4f4f5);
   padding: 4px 12px;
   border-radius: 10px;
   max-width: 80%;
@@ -169,6 +186,7 @@ function handleLoadYaml(yaml: string) {
   line-height: 1.6;
   word-break: break-word;
   min-width: 60px;
+  position: relative;
 }
 
 .message-user .bubble-body {
@@ -178,9 +196,10 @@ function handleLoadYaml(yaml: string) {
 }
 
 .message-assistant .bubble-body {
-  background-color: #f5f7fa;
-  color: #303133;
+  background-color: var(--gp-bg-elevated, #f5f7fa);
+  color: var(--gp-text-primary, #303133);
   border-top-left-radius: 2px;
+  border: 1px solid var(--gp-border-light, #ebeef5);
 }
 
 /* --- Markdown content --- */
@@ -201,7 +220,7 @@ function handleLoadYaml(yaml: string) {
   background: rgba(255, 255, 255, 0.15);
 }
 .message-assistant .bubble-content :deep(pre.hljs) {
-  background: #1e1e1e;
+  background: var(--gp-code-bg, #1e1e1e);
   color: #d4d4d4;
 }
 .bubble-content :deep(code) {
@@ -228,7 +247,7 @@ function handleLoadYaml(yaml: string) {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #909399;
+  background: var(--gp-text-muted, #909399);
   animation: blink 1.4s infinite both;
 }
 .typing-indicator span:nth-child(2) {
@@ -245,12 +264,34 @@ function handleLoadYaml(yaml: string) {
 /* --- Footer --- */
 .bubble-footer {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 4px;
   margin-top: 4px;
   font-size: 11px;
   opacity: 0.6;
+  transition: opacity 0.15s;
 }
+
+.bubble-body:hover .bubble-footer {
+  opacity: 1;
+}
+
 .message-user .bubble-footer {
   justify-content: flex-end;
+}
+
+.copy-btn {
+  padding: 2px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.bubble-body:hover .copy-btn {
+  opacity: 1;
+}
+
+.message-user .copy-btn {
+  color: rgba(255, 255, 255, 0.7);
 }
 </style>
