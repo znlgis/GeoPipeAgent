@@ -204,6 +204,16 @@ async def get_config():
 @router.put("/config", response_model=LlmConfigResponse)
 async def update_config(req: LlmConfigUpdate):
     """Update LLM configuration."""
+    # Validate temperature range
+    if req.temperature is not None and not (0.0 <= req.temperature <= 2.0):
+        raise HTTPException(
+            status_code=400, detail="Temperature must be between 0.0 and 2.0"
+        )
+    # Validate max_tokens
+    if req.max_tokens is not None and req.max_tokens < 1:
+        raise HTTPException(
+            status_code=400, detail="Max tokens must be a positive integer"
+        )
     current = get_llm_config()
     update_data = req.model_dump(exclude_none=True)
     merged = {**current, **update_data}

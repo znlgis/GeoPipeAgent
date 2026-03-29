@@ -1,12 +1,16 @@
 """GeoPipeAgent Web UI - FastAPI Backend."""
 import os
+import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 from .routers import pipeline, llm, export
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="GeoPipeAgent Web UI",
@@ -26,6 +30,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── Global error handler ─────────────────────────────────────────────────────
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch-all handler for unhandled exceptions."""
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal server error",
+            "error_code": "INTERNAL_ERROR",
+        },
+    )
+
 
 # Register routers
 app.include_router(pipeline.router)
