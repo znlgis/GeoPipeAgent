@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   VideoPlay,
@@ -12,19 +13,24 @@ import {
   DArrowRight,
   ArrowDown,
   ArrowUp,
+  Timer,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { usePipelineStore } from '@/stores/pipelineStore'
 import { useChatStore } from '@/stores/chatStore'
+import { useTaskStore } from '@/stores/taskStore'
 import { useFlowEditor } from '@/composables/useFlowEditor'
 import FlowCanvas from '@/components/flow/FlowCanvas.vue'
 import StepConfigPanel from '@/components/flow/StepConfigPanel.vue'
 import NodePalette from '@/components/flow/NodePalette.vue'
 import ExecutionLog from '@/components/common/ExecutionLog.vue'
 import YamlPreview from '@/components/common/YamlPreview.vue'
+import MapPreview from '@/components/common/MapPreview.vue'
 
+const router = useRouter()
 const pipelineStore = usePipelineStore()
 const chatStore = useChatStore()
+const taskStore = useTaskStore()
 const { t } = useI18n()
 const {
   isExecuting,
@@ -43,6 +49,28 @@ const saveName = ref('')
 const activeBottomTab = ref('log')
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const aiGenerating = ref(false)
+const isSubmittingBackground = ref(false)
+
+// Extract GeoJSON from execution result (if it contains spatial data)
+const executionGeoJson = computed<Record<string, any> | null>(() => {
+  const result = pipelineStore.executionResult
+  if (!result) return null
+  // Check if result itself is GeoJSON
+  if (result.type === 'FeatureCollection' || result.type === 'Feature') return result
+  // Check common nested locations
+  if (result.geojson) return result.geojson
+  if (result.geodata) return result.geodata
+  if (result.output?.type === 'FeatureCollection') return result.output
+  return null
+})
+
+// Auto-switch to map tab when GeoJSON becomes available
+watch(executionGeoJson, (val) => {
+  if (val) {
+    showBottom.value = true
+    activeBottomTab.value = 'map'
+  }
+})
 
 // --- Panel collapse states ---
 const showPalette = ref(true)
@@ -126,6 +154,27 @@ async function handleRun() {
   await executePipeline()
   showBottom.value = true
   activeBottomTab.value = 'log'
+}
+
+async function handleSubmitBackground() {
+  const yaml = pipelineStore.exportToYaml()
+  if (!yaml) {
+    ElMessage.warning(t('pipeline.empty'))
+    return
+  }
+  isSubmittingBackground.value = true
+  try {
+    const result = await taskStore.submitTask(yaml)
+    if (result) {
+      ElMessage.success(t('task.submitted', { id: result.task_id }))
+    }
+  } finally {
+    isSubmittingBackground.value = false
+  }
+}
+
+function goToTemplates() {
+  router.push('/templates')
 }
 
 async function handleValidate() {
@@ -272,6 +321,14 @@ function handleLoadYaml(yaml: string) {
             {{ t('common.export') }}
           </el-button>
         </el-tooltip>
+
+        <el-divider direction="vertical" />
+
+        <el-tooltip :content="t('task.submitTooltip')" placement="bottom" :show-after="500">
+          <el-button :icon="Timer" :loading="isSubmittingBackground" @click="handleSubmitBackground">
+            {{ t('task.submit') }}
+          </el-button>
+        </el-tooltip>
       </div>
 
       <div class="toolbar-right">
@@ -331,6 +388,21 @@ function handleLoadYaml(yaml: string) {
       </transition>
       <el-main class="canvas-main">
         <FlowCanvas />
+        <!-- Empty state guidance overlay -->
+        <div v-if="pipelineStore.nodes.length === 0" class="canvas-empty-state">
+          <div class="empty-state-card">
+            <div class="empty-icon">🚀</div>
+            <h3 class="empty-title">{{ t('emptyState.title') }}</h3>
+            <div class="empty-hints">
+              <p>📋 {{ t('emptyState.hint1') }}</p>
+              <p>🤖 {{ t('emptyState.hint2') }}</p>
+              <p>📦 {{ t('emptyState.hint3') }}</p>
+            </div>
+            <el-button type="primary" size="small" @click="goToTemplates">
+              {{ t('emptyState.browseTemplates') }}
+            </el-button>
+          </div>
+        </div>
       </el-main>
       <transition name="slide-right">
         <el-aside v-show="showConfig" width="300px" class="config-aside">
@@ -351,6 +423,11 @@ function handleLoadYaml(yaml: string) {
           </el-tab-pane>
           <el-tab-pane :label="t('pipeline.yamlPreview')" name="yaml">
             <YamlPreview @load-yaml="handleLoadYaml" />
+          </el-tab-pane>
+          <el-tab-pane :label="t('pipeline.mapPreviewTab')" name="map">
+            <div class="map-tab-container">
+              <MapPreview :geojson="executionGeoJson" :height="bottomPanelHeight - 60" />
+            </div>
           </el-tab-pane>
         </el-tabs>
       </div>
@@ -461,6 +538,7 @@ function handleLoadYaml(yaml: string) {
 .canvas-main {
   padding: 0;
   overflow: hidden;
+  position: relative;
 }
 
 .config-aside {
@@ -580,5 +658,57 @@ function handleLoadYaml(yaml: string) {
 .status-shortcuts {
   margin-left: auto;
   opacity: 0.5;
+}
+
+/* ── Map tab container ── */
+.map-tab-container {
+  height: 100%;
+  overflow: auto;
+}
+
+/* ── Empty state overlay ── */
+.canvas-empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.empty-state-card {
+  text-align: center;
+  padding: 32px 40px;
+  border-radius: 12px;
+  background: var(--gp-bg-elevated);
+  border: 1px dashed var(--gp-border-color);
+  box-shadow: var(--gp-shadow-md);
+  pointer-events: auto;
+  max-width: 400px;
+}
+
+.empty-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.empty-title {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--gp-text-primary);
+}
+
+.empty-hints {
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.empty-hints p {
+  margin: 8px 0;
+  font-size: 13px;
+  color: var(--gp-text-secondary);
+  line-height: 1.6;
 }
 </style>

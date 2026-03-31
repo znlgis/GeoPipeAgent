@@ -65,6 +65,11 @@ const router = createRouter({
       name: 'ConversationHistory',
       component: () => import('./views/ConversationHistory.vue'),
     },
+    {
+      path: '/tasks',
+      name: 'TaskManager',
+      component: () => import('./views/TaskManager.vue'),
+    },
   ],
 })
 

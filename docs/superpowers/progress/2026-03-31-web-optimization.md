@@ -114,26 +114,26 @@
 ### 前端优化
 
 #### 1. MapPreview 深度集成
-- [ ] 在 `PipelineEditor.vue` 执行完成后自动展示地图预览
+- [x] 在 `PipelineEditor.vue` 执行完成后自动展示地图预览
 - [ ] 支持 WKT 格式数据解析与渲染
 - [ ] 添加 ECharts 图表组件展示统计结果（面积、长度等）
 - [ ] 支持多图层叠加展示
 - [ ] 添加图层控制面板（显示/隐藏/样式调整）
 
 #### 2. 模板 "试用" 完整流程
-- [ ] 点击"用 AI 试试"时自动填充 prompt 到聊天页面
-- [ ] 模板详情弹窗（展示完整 YAML、步骤说明、预期输出）
+- [x] 点击"用 AI 试试"时自动填充 prompt 到聊天页面
+- [x] 模板详情弹窗（展示完整 YAML、步骤说明、预期输出）
 - [ ] 模板收藏/置顶功能
 
 #### 3. 任务管理 UI
-- [ ] 任务列表组件（展示运行中/已完成/失败任务）
-- [ ] 任务进度条组件（SSE 实时更新）
+- [x] 任务列表组件（展示运行中/已完成/失败任务）
+- [x] 任务进度条组件（SSE 实时更新）
 - [ ] 任务结果查看（自动调用 MapPreview 展示空间数据）
-- [ ] 将 "提交后台执行" 按钮添加到 PipelineEditor 工具栏
+- [x] 将 "提交后台执行" 按钮添加到 PipelineEditor 工具栏
 
 #### 4. 用户引导 / Onboarding
 - [ ] 首次访问引导 tour（介绍各功能区）
-- [ ] Pipeline Editor 空状态引导（"拖拽步骤或选择模板开始"）
+- [x] Pipeline Editor 空状态引导（"拖拽步骤或选择模板开始"）
 
 ### 后端优化
 
@@ -157,7 +157,7 @@
 
 #### 1. Docker 镜像优化
 - [ ] 多阶段构建减小后端镜像体积
-- [ ] 添加 healthcheck 到 backend 和 frontend 服务
+- [x] 添加 healthcheck 到 backend 和 frontend 服务
 - [ ] 支持 ARM64 架构构建
 - [ ] 添加 PostGIS 服务到 docker-compose.yml（可选）
 
@@ -194,9 +194,11 @@ web/frontend/Dockerfile                         # 前端镜像
 web/frontend/nginx.conf                         # Nginx 配置
 web/frontend/src/components/common/MapPreview.vue  # 地图预览组件
 web/frontend/src/stores/templateStore.ts        # 模板状态管理
+web/frontend/src/stores/taskStore.ts            # 任务状态管理
 web/frontend/src/types/template.ts              # 模板类型定义
 web/frontend/src/types/task.ts                  # 任务类型定义
 web/frontend/src/views/TemplateGallery.vue      # 模板库页面
+web/frontend/src/views/TaskManager.vue          # 任务管理页面
 ```
 
 ## 修改文件列表
@@ -206,8 +208,14 @@ web/backend/main.py                             # 注册 template + task 路由
 web/backend/models/schemas.py                   # 新增 Template/Task Pydantic 模型
 web/backend/routers/llm.py                      # 多轮上下文 + PATCH 重命名
 web/backend/services/llm_service.py             # generate_pipeline_with_context()
-web/frontend/src/App.vue                        # 导航菜单增加"模板库"
-web/frontend/src/main.ts                        # 路由增加 /templates
-web/frontend/src/locales/zh-CN.ts               # i18n: template, mapPreview, task
-web/frontend/src/locales/en-US.ts               # i18n: template, mapPreview, task
+web/frontend/src/App.vue                        # 导航菜单增加"模板库"+"任务管理"
+web/frontend/src/main.ts                        # 路由增加 /templates, /tasks
+web/frontend/src/locales/zh-CN.ts               # i18n: template, mapPreview, task, emptyState
+web/frontend/src/locales/en-US.ts               # i18n: template, mapPreview, task, emptyState
+web/frontend/src/views/PipelineEditor.vue       # MapPreview tab, Submit Background, 空状态引导
+web/frontend/src/views/LlmChat.vue              # 路由参数处理（模板"用 AI 试试"流程）
+web/frontend/src/views/TemplateGallery.vue      # 模板详情弹窗
+web/frontend/src/components/chat/ChatWindow.vue # initialPrompt/initialMode props
+web/frontend/src/utils/sseClient.ts             # GET 方法支持（任务 SSE 流）
+docker-compose.yml                              # backend/frontend healthcheck
 ```

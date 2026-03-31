@@ -27,6 +27,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
   const selectedNodeId = ref<string | null>(null)
   const executionStatus = ref<'idle' | 'running' | 'done' | 'error'>('idle')
   const executionLog = ref<string[]>([])
+  const executionResult = ref<Record<string, any> | null>(null)
 
   // --- Getters ---
   const stepCategories = computed<StepCategory[]>(() => {
@@ -78,6 +79,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
     selectedNodeId.value = null
     executionStatus.value = 'idle'
     executionLog.value = []
+    executionResult.value = null
   }
 
   function exportToYaml(): string {
@@ -161,6 +163,7 @@ export const usePipelineStore = defineStore('pipeline', () => {
     selectedNodeId,
     executionStatus,
     executionLog,
+    executionResult,
     // Getters
     stepCategories,
     yamlPreview,

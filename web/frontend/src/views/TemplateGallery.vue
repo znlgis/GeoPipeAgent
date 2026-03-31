@@ -6,7 +6,7 @@ import { ElMessage } from 'element-plus'
 import { useTemplateStore } from '@/stores/templateStore'
 import { usePipelineStore } from '@/stores/pipelineStore'
 import { getLocale } from '@/locales'
-import type { TemplateInfo } from '@/types/template'
+import type { TemplateInfo, TemplateDetail } from '@/types/template'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -14,6 +14,9 @@ const templateStore = useTemplateStore()
 const pipelineStore = usePipelineStore()
 const searchQuery = ref('')
 const selectedCategory = ref('')
+const showDetailDialog = ref(false)
+const detailTemplate = ref<TemplateDetail | null>(null)
+const detailLoading = ref(false)
 
 onMounted(() => {
   templateStore.fetchTemplates()
@@ -95,6 +98,19 @@ async function tryWithPrompt(tpl: TemplateInfo) {
     path: '/chat',
     query: { prompt: prompt, mode: 'generate' },
   })
+}
+
+async function viewDetail(tpl: TemplateInfo) {
+  detailLoading.value = true
+  showDetailDialog.value = true
+  const detail = await templateStore.loadTemplate(tpl.id)
+  if (detail) {
+    detailTemplate.value = detail
+  } else {
+    ElMessage.error(t('template.loadFailed'))
+    showDetailDialog.value = false
+  }
+  detailLoading.value = false
 }
 </script>
 
@@ -194,9 +210,71 @@ async function tryWithPrompt(tpl: TemplateInfo) {
           >
             {{ t('template.tryWithAI') }}
           </el-button>
+          <el-button
+            size="small"
+            text
+            :disabled="!tpl.available"
+            @click="viewDetail(tpl)"
+          >
+            {{ t('template.viewDetail') }}
+          </el-button>
         </div>
       </div>
     </div>
+
+    <!-- Template Detail Dialog -->
+    <el-dialog
+      v-model="showDetailDialog"
+      :title="t('template.detailTitle')"
+      width="700px"
+      :close-on-click-modal="true"
+    >
+      <div v-if="detailLoading" style="text-align: center; padding: 40px">
+        <el-skeleton :rows="6" animated />
+      </div>
+      <div v-else-if="detailTemplate" class="detail-content">
+        <div class="detail-meta">
+          <h3 class="detail-name">
+            {{ currentLocale === 'zh-CN' ? detailTemplate.name_zh : detailTemplate.name_en }}
+          </h3>
+          <div class="detail-badges">
+            <el-tag size="small" :type="getDifficultyType(detailTemplate.difficulty)">
+              {{ t(`template.difficulty.${detailTemplate.difficulty}`) }}
+            </el-tag>
+            <el-tag size="small" type="info">{{ detailTemplate.category }}</el-tag>
+          </div>
+          <p class="detail-desc">
+            {{ currentLocale === 'zh-CN' ? detailTemplate.description_zh : detailTemplate.description_en }}
+          </p>
+        </div>
+
+        <el-divider />
+
+        <div class="detail-section">
+          <h4>{{ t('template.prompt') }}</h4>
+          <div class="detail-prompt">
+            {{ currentLocale === 'zh-CN' ? detailTemplate.prompt_zh : detailTemplate.prompt_en }}
+          </div>
+        </div>
+
+        <el-divider />
+
+        <div class="detail-section">
+          <h4>{{ t('template.yamlContent') }}</h4>
+          <pre class="detail-yaml">{{ detailTemplate.yaml_content }}</pre>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showDetailDialog = false">{{ t('common.cancel') }}</el-button>
+        <el-button
+          v-if="detailTemplate"
+          type="primary"
+          @click="loadToEditor(detailTemplate); showDetailDialog = false"
+        >
+          {{ t('template.loadToEditor') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -319,5 +397,58 @@ async function tryWithPrompt(tpl: TemplateInfo) {
   padding: 60px 0;
   text-align: center;
   color: var(--gp-text-muted);
+}
+
+/* ── Template Detail Dialog ── */
+.detail-content {
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+.detail-name {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: var(--gp-text-primary);
+}
+
+.detail-badges {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.detail-desc {
+  margin: 0;
+  font-size: 14px;
+  color: var(--gp-text-secondary);
+  line-height: 1.6;
+}
+
+.detail-section h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gp-text-primary);
+}
+
+.detail-prompt {
+  background: var(--gp-bg-secondary);
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--gp-text-secondary);
+}
+
+.detail-yaml {
+  background: var(--gp-code-bg, #1e1e1e);
+  color: #d4d4d4;
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-x: auto;
+  max-height: 300px;
+  margin: 0;
 }
 </style>

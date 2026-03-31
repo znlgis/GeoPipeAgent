@@ -8,6 +8,14 @@ import { useSkillStore } from '@/stores/skillStore'
 import type { ChatMessage } from '@/types/chat'
 import MessageBubble from './MessageBubble.vue'
 
+const props = withDefaults(
+  defineProps<{
+    initialPrompt?: string
+    initialMode?: 'chat' | 'pipeline'
+  }>(),
+  { initialPrompt: '', initialMode: 'chat' },
+)
+
 const emit = defineEmits<{
   (e: 'load-pipeline', yaml: string): void
 }>()
@@ -32,6 +40,23 @@ const canSend = computed(
 onMounted(() => {
   skillStore.fetchModules()
 })
+
+// Watch for initial prompt from template "Try with AI" flow
+watch(
+  () => props.initialPrompt,
+  (prompt) => {
+    if (prompt && prompt.trim() && chatStore.currentConversation) {
+      activeMode.value = props.initialMode || 'chat'
+      inputText.value = prompt
+      nextTick(() => {
+        if (inputText.value.trim()) {
+          send()
+        }
+      })
+    }
+  },
+  { immediate: true },
+)
 
 function scrollToBottom() {
   nextTick(() => {

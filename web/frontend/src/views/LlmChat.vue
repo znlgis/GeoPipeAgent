@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Plus, Delete, Edit } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -10,10 +10,13 @@ import ChatWindow from '@/components/chat/ChatWindow.vue'
 import axios from 'axios'
 
 const router = useRouter()
+const route = useRoute()
 const chatStore = useChatStore()
 const { t } = useI18n()
 
 const searchQuery = ref('')
+const pendingPrompt = ref('')
+const pendingMode = ref<'chat' | 'pipeline'>('chat')
 
 const filteredConversations = computed(() => {
   const q = searchQuery.value.toLowerCase().trim()
@@ -23,8 +26,23 @@ const filteredConversations = computed(() => {
   )
 })
 
-onMounted(() => {
-  chatStore.fetchConversations()
+onMounted(async () => {
+  await chatStore.fetchConversations()
+
+  // Handle query params from template "Try with AI" navigation
+  const queryPrompt = route.query.prompt as string | undefined
+  const queryMode = route.query.mode as string | undefined
+  if (queryPrompt) {
+    // Create a new conversation and pre-fill the prompt
+    await createConversation()
+    if (chatStore.currentConversation) {
+      // Set mode and auto-send via ChatWindow ref
+      pendingPrompt.value = queryPrompt
+      pendingMode.value = queryMode === 'generate' ? 'pipeline' : 'chat'
+    }
+    // Clean query params from URL to avoid re-trigger on navigation
+    router.replace({ path: '/chat' })
+  }
 })
 
 async function createConversation() {
@@ -154,7 +172,11 @@ function handleLoadPipeline(yaml: string) {
 
     <!-- Main area: chat window -->
     <el-main class="chat-main">
-      <ChatWindow @load-pipeline="handleLoadPipeline" />
+      <ChatWindow
+        :initial-prompt="pendingPrompt"
+        :initial-mode="pendingMode"
+        @load-pipeline="handleLoadPipeline"
+      />
     </el-main>
   </el-container>
 </template>
