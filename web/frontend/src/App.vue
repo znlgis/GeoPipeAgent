@@ -4,6 +4,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Sunny, Moon } from '@element-plus/icons-vue'
 import { setLocale, getLocale } from './locales'
+import OnboardingTour from './components/common/OnboardingTour.vue'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -97,6 +98,7 @@ function toggleLocale() {
         </transition>
       </router-view>
     </el-main>
+    <OnboardingTour />
   </el-container>
 </template>
 

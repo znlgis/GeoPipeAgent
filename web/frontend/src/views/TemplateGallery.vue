@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
@@ -18,8 +19,18 @@ const showDetailDialog = ref(false)
 const detailTemplate = ref<TemplateDetail | null>(null)
 const detailLoading = ref(false)
 
+// --- Favorites ---
+const favoriteIds = ref<string[]>([])
+
 onMounted(() => {
   templateStore.fetchTemplates()
+  // Load favorites from localStorage
+  try {
+    const saved = localStorage.getItem('geopipe-favorite-templates')
+    if (saved) favoriteIds.value = JSON.parse(saved)
+  } catch (err) {
+    console.warn('Failed to load template favorites from localStorage:', err)
+  }
 })
 
 const currentLocale = computed(() => getLocale())
@@ -46,8 +57,27 @@ const filteredTemplates = computed(() => {
         tpl.tags.some((tag) => tag.includes(q)),
     )
   }
-  return result
+  // Sort favorites first
+  return [...result].sort((a, b) => {
+    const aFav = favoriteIds.value.includes(a.id) ? 0 : 1
+    const bFav = favoriteIds.value.includes(b.id) ? 0 : 1
+    return aFav - bFav
+  })
 })
+
+function isFavorite(tplId: string): boolean {
+  return favoriteIds.value.includes(tplId)
+}
+
+function toggleFavorite(tplId: string) {
+  const idx = favoriteIds.value.indexOf(tplId)
+  if (idx >= 0) {
+    favoriteIds.value.splice(idx, 1)
+  } else {
+    favoriteIds.value.push(tplId)
+  }
+  localStorage.setItem('geopipe-favorite-templates', JSON.stringify(favoriteIds.value))
+}
 
 function getDisplayName(tpl: TemplateInfo): string {
   return currentLocale.value === 'zh-CN' ? tpl.name_zh : tpl.name_en
@@ -178,6 +208,15 @@ async function viewDetail(tpl: TemplateInfo) {
               <el-tag size="small" type="info">{{ tpl.category }}</el-tag>
             </div>
           </div>
+          <el-button
+            size="small"
+            text
+            class="fav-btn"
+            :aria-label="isFavorite(tpl.id) ? t('template.unfavorite') : t('template.favorite')"
+            @click.stop="toggleFavorite(tpl.id)"
+          >
+            {{ isFavorite(tpl.id) ? '⭐' : '☆' }}
+          </el-button>
         </div>
 
         <p class="card-desc">{{ getDisplayDesc(tpl) }}</p>
@@ -390,6 +429,12 @@ async function viewDetail(tpl: TemplateInfo) {
   margin-top: auto;
   padding-top: 8px;
   border-top: 1px solid var(--gp-border-light);
+}
+
+.fav-btn {
+  font-size: 18px;
+  flex-shrink: 0;
+  padding: 4px;
 }
 
 .loading-state,
