@@ -87,13 +87,21 @@ async def _run_pipeline_task(task_id: str, yaml_content: str) -> None:
 
 
 def _looks_like_wkt(text: str) -> bool:
-    """Check if a string looks like a WKT geometry."""
-    text = text.strip().upper()
-    wkt_prefixes = (
-        "POINT", "LINESTRING", "POLYGON", "MULTIPOINT",
-        "MULTILINESTRING", "MULTIPOLYGON", "GEOMETRYCOLLECTION",
+    """Check if a string looks like a WKT geometry.
+
+    Performs a basic heuristic: the string must start with a known WKT
+    type keyword followed by an opening parenthesis (with optional
+    whitespace).  This is not a full validation—false positives are
+    possible for unusual strings, but unlikely in pipeline results.
+    """
+    import re
+    text = text.strip()
+    wkt_pattern = re.compile(
+        r"^(POINT|LINESTRING|POLYGON|MULTIPOINT|MULTILINESTRING|"
+        r"MULTIPOLYGON|GEOMETRYCOLLECTION)\s*\(",
+        re.IGNORECASE,
     )
-    return any(text.startswith(prefix) for prefix in wkt_prefixes)
+    return bool(wkt_pattern.match(text))
 
 
 def _extract_geodata(result: dict[str, Any]) -> dict[str, Any] | None:

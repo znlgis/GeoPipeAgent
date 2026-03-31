@@ -44,10 +44,11 @@ COPY --from=builder /build/src /app/src
 COPY --from=builder /build/pyproject.toml /app/
 
 # Re-install in editable mode so the local src/ is on sys.path.
-# Deps already exist in the venv; this may warn about missing build
-# tools (build-essential not in runtime stage), which is harmless.
+# Deps already exist in the venv; this only needs to set up the
+# .egg-link / .pth file — no compilation required.
 RUN /opt/venv/bin/pip install --no-deps --no-build-isolation \
-        --no-cache-dir -e ".[analysis,network,web]" 2>/dev/null || true
+        --no-cache-dir -e ".[analysis,network,web]" \
+    || echo "WARNING: editable install failed — falling back to builder install"
 
 # Copy application code
 COPY web/ ./web/

@@ -28,7 +28,9 @@ onMounted(() => {
   try {
     const saved = localStorage.getItem('geopipe-favorite-templates')
     if (saved) favoriteIds.value = JSON.parse(saved)
-  } catch { /* ignore */ }
+  } catch (err) {
+    console.warn('Failed to load template favorites from localStorage:', err)
+  }
 })
 
 const currentLocale = computed(() => getLocale())
