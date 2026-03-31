@@ -188,14 +188,13 @@ async def delete_conversation(conversation_id: str):
 @router.patch("/conversations/{conversation_id}")
 async def update_conversation(conversation_id: str, body: dict):
     """Update conversation metadata (e.g., rename)."""
-    conversation = conversation_store.get_conversation(conversation_id)
-    if conversation is None:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-
     title = body.get("title")
-    if title is not None:
-        conversation["title"] = title
-        conversation_store._save(conversation)
+    if title is None:
+        raise HTTPException(status_code=400, detail="No updatable fields provided")
+
+    updated = conversation_store.update_conversation(conversation_id, title=title)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
 
     return {"message": "Conversation updated", "id": conversation_id}
 

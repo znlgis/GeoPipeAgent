@@ -19,7 +19,7 @@ onMounted(() => {
   templateStore.fetchTemplates()
 })
 
-const locale = computed(() => getLocale())
+const currentLocale = computed(() => getLocale())
 
 const categories = computed(() => {
   const cats = new Set(templateStore.templates.map((tpl) => tpl.category))
@@ -47,11 +47,11 @@ const filteredTemplates = computed(() => {
 })
 
 function getDisplayName(tpl: TemplateInfo): string {
-  return locale.value === 'zh-CN' ? tpl.name_zh : tpl.name_en
+  return currentLocale.value === 'zh-CN' ? tpl.name_zh : tpl.name_en
 }
 
 function getDisplayDesc(tpl: TemplateInfo): string {
-  return locale.value === 'zh-CN' ? tpl.description_zh : tpl.description_en
+  return currentLocale.value === 'zh-CN' ? tpl.description_zh : tpl.description_en
 }
 
 function getDifficultyType(level: string): 'success' | 'warning' | 'danger' {
@@ -89,7 +89,7 @@ async function tryWithPrompt(tpl: TemplateInfo) {
     ElMessage.error(t('template.loadFailed'))
     return
   }
-  const prompt = locale.value === 'zh-CN' ? detail.prompt_zh : detail.prompt_en
+  const prompt = currentLocale.value === 'zh-CN' ? detail.prompt_zh : detail.prompt_en
   // Navigate to chat page with prompt pre-filled
   router.push({
     path: '/chat',

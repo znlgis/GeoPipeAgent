@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
+# Task time-to-live in Redis (seconds). Default: 24 hours.
+TASK_TTL_SECONDS = int(os.environ.get("TASK_TTL_SECONDS", "86400"))
+
 # In-memory task store fallback (when Redis is unavailable)
 _task_store: dict[str, dict[str, Any]] = {}
 
@@ -77,7 +80,7 @@ def create_task(task_type: str, params: dict[str, Any]) -> str:
 
     r = _get_redis()
     if r is not None:
-        r.set(f"task:{task_id}", json.dumps(task, default=str), ex=86400)  # 24h TTL
+        r.set(f"task:{task_id}", json.dumps(task, default=str), ex=TASK_TTL_SECONDS)
     else:
         _task_store[task_id] = task
 
@@ -112,7 +115,7 @@ def update_task(
 
     r = _get_redis()
     if r is not None:
-        r.set(f"task:{task_id}", json.dumps(task, default=str), ex=86400)
+        r.set(f"task:{task_id}", json.dumps(task, default=str), ex=TASK_TTL_SECONDS)
     else:
         _task_store[task_id] = task
 

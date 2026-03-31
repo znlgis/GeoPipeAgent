@@ -33,10 +33,11 @@ const bboxInfo = ref('')
 let mapInstance: any = null
 let vectorSource: any = null
 
-// ── Dynamically load OpenLayers from CDN ────────────────────────────────────
+// ── OpenLayers CDN configuration ─────────────────────────────────────────────
 
-const OL_CSS = 'https://cdn.jsdelivr.net/npm/ol@8.2.0/ol.css'
-const OL_JS = 'https://cdn.jsdelivr.net/npm/ol@8.2.0/dist/ol.js'
+const OL_VERSION = '8.2.0'
+const OL_CSS = `https://cdn.jsdelivr.net/npm/ol@${OL_VERSION}/ol.css`
+const OL_JS = `https://cdn.jsdelivr.net/npm/ol@${OL_VERSION}/dist/ol.js`
 
 function loadCSS(url: string): Promise<void> {
   return new Promise((resolve) => {

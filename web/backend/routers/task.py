@@ -13,6 +13,9 @@ from ..services import pipeline_service, task_queue
 
 router = APIRouter(prefix="/api/task", tags=["task"])
 
+# Polling interval (seconds) when streaming task progress via SSE
+TASK_POLL_INTERVAL = 0.5
+
 
 # ── Submit a pipeline execution as a background task ─────────────────────────
 
@@ -146,7 +149,7 @@ async def stream_task(task_id: str):
                 }
                 return
 
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(TASK_POLL_INTERVAL)
 
     return EventSourceResponse(_event_generator())
 
