@@ -1,5 +1,6 @@
 """Configuration management for GeoPipeAgent Web UI."""
 import json
+import os
 from pathlib import Path
 
 # Base directories
@@ -15,12 +16,9 @@ for d in [DATA_DIR, CONVERSATIONS_DIR, PIPELINES_DIR, EXTERNAL_SKILLS_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_LLM_CONFIG = {
-    "api_key": "",
-    "base_url": "https://api.openai.com/v1",
-    "model": "gpt-4",
-    "temperature": 0.7,
-    "max_tokens": 4096,
-    "system_prompt_extra": "",
+    "api_key": os.environ.get("LLM_API_KEY", ""),
+    "base_url": "https://api.deepseek.com/v1",
+    "model": "deepseek-reasoner"
 }
 
 
