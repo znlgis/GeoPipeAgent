@@ -115,24 +115,24 @@
 
 #### 1. MapPreview 深度集成
 - [x] 在 `PipelineEditor.vue` 执行完成后自动展示地图预览
-- [ ] 支持 WKT 格式数据解析与渲染
+- [x] 支持 WKT 格式数据解析与渲染 ✅ (续期完成)
 - [ ] 添加 ECharts 图表组件展示统计结果（面积、长度等）
-- [ ] 支持多图层叠加展示
-- [ ] 添加图层控制面板（显示/隐藏/样式调整）
+- [x] 支持多图层叠加展示 ✅ (续期完成)
+- [x] 添加图层控制面板（显示/隐藏/样式调整）✅ (续期完成)
 
 #### 2. 模板 "试用" 完整流程
 - [x] 点击"用 AI 试试"时自动填充 prompt 到聊天页面
 - [x] 模板详情弹窗（展示完整 YAML、步骤说明、预期输出）
-- [ ] 模板收藏/置顶功能
+- [x] 模板收藏/置顶功能 ✅ (续期完成)
 
 #### 3. 任务管理 UI
 - [x] 任务列表组件（展示运行中/已完成/失败任务）
 - [x] 任务进度条组件（SSE 实时更新）
-- [ ] 任务结果查看（自动调用 MapPreview 展示空间数据）
+- [x] 任务结果查看（自动调用 MapPreview 展示空间数据）✅ (续期完成)
 - [x] 将 "提交后台执行" 按钮添加到 PipelineEditor 工具栏
 
 #### 4. 用户引导 / Onboarding
-- [ ] 首次访问引导 tour（介绍各功能区）
+- [x] 首次访问引导 tour（介绍各功能区）✅ (续期完成)
 - [x] Pipeline Editor 空状态引导（"拖拽步骤或选择模板开始"）
 
 ### 后端优化
@@ -144,8 +144,8 @@
 - [ ] 任务超时和重试策略
 
 #### 2. Pipeline 执行结果数据提取
-- [ ] 从执行报告中提取 GeoJSON/WKT 数据
-- [ ] 提供 `/api/pipeline/result/{task_id}/geodata` 端点
+- [x] 从执行报告中提取 GeoJSON/WKT 数据 ✅ (续期完成)
+- [x] 提供 `/api/task/{task_id}/geodata` 端点 ✅ (续期完成)
 - [ ] 支持空间数据格式转换（CRS → EPSG:4326 for web）
 
 #### 3. 用户认证与多租户
@@ -156,14 +156,14 @@
 ### 部署优化
 
 #### 1. Docker 镜像优化
-- [ ] 多阶段构建减小后端镜像体积
+- [x] 多阶段构建减小后端镜像体积 ✅ (续期完成)
 - [x] 添加 healthcheck 到 backend 和 frontend 服务
 - [ ] 支持 ARM64 架构构建
 - [ ] 添加 PostGIS 服务到 docker-compose.yml（可选）
 
 #### 2. CI/CD
-- [ ] GitHub Actions 自动构建和推送 Docker 镜像
-- [ ] 自动运行测试（前后端）
+- [x] GitHub Actions 自动构建和推送 Docker 镜像 ✅ (续期完成)
+- [x] 自动运行测试（前后端）✅ (续期完成)
 - [ ] 版本化发布流程
 
 ---
@@ -172,7 +172,7 @@
 
 | 类型 | 数量 | 状态 |
 |------|------|------|
-| 后端 API 测试 | 52 | ✅ 全部通过 |
+| 后端 API 测试 | 56 | ✅ 全部通过 |
 | 前端单元测试 | 27 | ✅ 全部通过 |
 | TypeScript 类型检查 | - | ✅ 无错误 |
 | Vite 生产构建 | - | ✅ 成功 |
@@ -183,22 +183,24 @@
 
 ```
 .env.example                                    # Docker 环境变量模板
+.github/workflows/ci.yml                        # CI/CD 工作流 (续期新增)
 docker-compose.yml                              # Docker 编排
-web/backend/Dockerfile                          # 后端镜像
+web/backend/Dockerfile                          # 后端镜像（多阶段优化）
 web/backend/routers/template.py                 # 模板 API
-web/backend/routers/task.py                     # 任务队列 API
+web/backend/routers/task.py                     # 任务队列 API + geodata 端点
 web/backend/services/task_queue.py              # Redis 任务队列服务
 web/backend/tests/test_template.py              # 模板 API 测试
-web/backend/tests/test_task.py                  # 任务 API 测试
+web/backend/tests/test_task.py                  # 任务 API 测试（含 geodata）
 web/frontend/Dockerfile                         # 前端镜像
 web/frontend/nginx.conf                         # Nginx 配置
-web/frontend/src/components/common/MapPreview.vue  # 地图预览组件
+web/frontend/src/components/common/MapPreview.vue  # 地图预览组件（WKT/多图层/控制面板）
+web/frontend/src/components/common/OnboardingTour.vue  # 首次访问引导 (续期新增)
 web/frontend/src/stores/templateStore.ts        # 模板状态管理
 web/frontend/src/stores/taskStore.ts            # 任务状态管理
 web/frontend/src/types/template.ts              # 模板类型定义
 web/frontend/src/types/task.ts                  # 任务类型定义
-web/frontend/src/views/TemplateGallery.vue      # 模板库页面
-web/frontend/src/views/TaskManager.vue          # 任务管理页面
+web/frontend/src/views/TemplateGallery.vue      # 模板库页面（含收藏功能）
+web/frontend/src/views/TaskManager.vue          # 任务管理页面（含结果查看）
 ```
 
 ## 修改文件列表
