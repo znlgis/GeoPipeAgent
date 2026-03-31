@@ -43,8 +43,11 @@ COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /build/src /app/src
 COPY --from=builder /build/pyproject.toml /app/
 
-# Re-install in editable mode using the existing venv
-RUN /opt/venv/bin/pip install --no-cache-dir -e ".[analysis,network,web]" 2>/dev/null || true
+# Re-install in editable mode so the local src/ is on sys.path.
+# Deps already exist in the venv; this may warn about missing build
+# tools (build-essential not in runtime stage), which is harmless.
+RUN /opt/venv/bin/pip install --no-deps --no-build-isolation \
+        --no-cache-dir -e ".[analysis,network,web]" 2>/dev/null || true
 
 # Copy application code
 COPY web/ ./web/
