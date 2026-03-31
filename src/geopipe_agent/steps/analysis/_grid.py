@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 
 def normalize_bounds(
     total_bounds: tuple[float, float, float, float],

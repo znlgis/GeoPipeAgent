@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import geopandas as gpd
+    import networkx as nx
 
 
-def build_network_graph(gdf: Any, weight_field: str | None = None) -> Any:
+def build_network_graph(gdf: gpd.GeoDataFrame, weight_field: str | None = None) -> nx.Graph:
     """Build a NetworkX graph from line geometries in a GeoDataFrame.
 
     Each line segment between consecutive vertices becomes an edge.
@@ -27,7 +31,7 @@ def build_network_graph(gdf: Any, weight_field: str | None = None) -> Any:
 
     G = nx.Graph()
 
-    for _idx, row in gdf.iterrows():
+    for _, row in gdf.iterrows():
         geom = row.geometry
         if geom is None or geom.is_empty:
             continue
@@ -49,7 +53,7 @@ def build_network_graph(gdf: Any, weight_field: str | None = None) -> Any:
     return G
 
 
-def find_nearest_node(graph: Any, point: tuple[float, float]) -> tuple:
+def find_nearest_node(graph: nx.Graph, point: tuple[float, float]) -> tuple:
     """Return the node in *graph* nearest to *point*."""
     from shapely.geometry import Point
 
