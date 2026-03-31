@@ -273,6 +273,8 @@ export default {
     loadedSuccess: 'Template loaded into editor',
     loadFailed: 'Failed to load template',
     viewDetail: 'View Detail',
+    favorite: 'Favorite',
+    unfavorite: 'Unfavorite',
     detailTitle: 'Template Detail',
     yamlContent: 'YAML Content',
     prompt: 'Example Prompt',
@@ -316,6 +318,8 @@ export default {
     actions: 'Actions',
     refreshList: 'Refresh',
     managerDesc: 'Manage and monitor background pipeline tasks. View execution progress and results in real time.',
+    resultTitle: 'Task Result',
+    rawResult: 'Raw Result Data',
   },
   emptyState: {
     title: 'Start building your GIS pipeline',

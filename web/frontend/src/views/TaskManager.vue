@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Refresh, Delete } from '@element-plus/icons-vue'
+import { Refresh, Delete, View } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import axios from 'axios'
 import { useTaskStore } from '@/stores/taskStore'
 import { formatDate } from '@/utils/format'
+import MapPreview from '@/components/common/MapPreview.vue'
 import type { TaskStatus } from '@/types/task'
 
 const { t } = useI18n()
@@ -12,6 +14,12 @@ const taskStore = useTaskStore()
 
 // Auto-refresh interval
 let refreshTimer: ReturnType<typeof setInterval> | null = null
+
+// Result dialog state
+const showResultDialog = ref(false)
+const resultTask = ref<TaskStatus | null>(null)
+const resultGeoLayers = ref<any[]>([])
+const resultLoading = ref(false)
 
 onMounted(() => {
   taskStore.fetchTasks()
@@ -66,6 +74,24 @@ async function handleDelete(task: TaskStatus) {
     }
   } catch {
     // User cancelled
+  }
+}
+
+async function handleViewResult(task: TaskStatus) {
+  resultTask.value = task
+  resultGeoLayers.value = []
+  resultLoading.value = true
+  showResultDialog.value = true
+
+  try {
+    const response = await axios.get(`/api/task/${task.id}/geodata`)
+    if (response.data?.layers) {
+      resultGeoLayers.value = response.data.layers
+    }
+  } catch {
+    // No geodata available — will show raw JSON fallback
+  } finally {
+    resultLoading.value = false
   }
 }
 
@@ -144,8 +170,16 @@ function handleRefresh() {
         </template>
       </el-table-column>
 
-      <el-table-column :label="t('task.actions')" width="100" fixed="right">
+      <el-table-column :label="t('task.actions')" width="140" fixed="right">
         <template #default="{ row }">
+          <el-button
+            v-if="row.status === 'completed'"
+            type="primary"
+            size="small"
+            :icon="View"
+            text
+            @click="handleViewResult(row)"
+          />
           <el-button
             type="danger"
             size="small"
@@ -156,6 +190,30 @@ function handleRefresh() {
         </template>
       </el-table-column>
     </el-table>
+
+    <!-- Result Viewer Dialog -->
+    <el-dialog
+      v-model="showResultDialog"
+      :title="t('task.resultTitle')"
+      width="800px"
+      :close-on-click-modal="true"
+    >
+      <div v-if="resultLoading" class="result-loading">
+        <el-skeleton :rows="4" animated />
+      </div>
+      <div v-else-if="resultTask" class="result-content">
+        <!-- Spatial data visualization -->
+        <div v-if="resultGeoLayers.length > 0" class="result-map">
+          <MapPreview :layers="resultGeoLayers" :height="400" />
+        </div>
+
+        <!-- Raw result data -->
+        <div class="result-raw">
+          <h4>{{ t('task.rawResult') }}</h4>
+          <pre class="result-json">{{ JSON.stringify(resultTask.result, null, 2) }}</pre>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -212,5 +270,40 @@ function handleRefresh() {
   padding: 60px 0;
   text-align: center;
   color: var(--gp-text-muted);
+}
+
+/* ── Result Dialog ── */
+.result-loading {
+  padding: 20px;
+}
+
+.result-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.result-map {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.result-raw h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--gp-text-primary);
+}
+
+.result-json {
+  background: var(--gp-code-bg, #1e1e1e);
+  color: #d4d4d4;
+  padding: 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow: auto;
+  max-height: 300px;
+  margin: 0;
 }
 </style>

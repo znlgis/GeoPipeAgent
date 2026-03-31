@@ -273,6 +273,8 @@ export default {
     loadedSuccess: '模板已加载到编辑器',
     loadFailed: '加载模板失败',
     viewDetail: '查看详情',
+    favorite: '收藏',
+    unfavorite: '取消收藏',
     detailTitle: '模板详情',
     yamlContent: 'YAML 内容',
     prompt: '示例 Prompt',
@@ -316,6 +318,8 @@ export default {
     actions: '操作',
     refreshList: '刷新',
     managerDesc: '管理和监控后台运行的流水线任务，实时查看执行进度和结果。',
+    resultTitle: '任务结果',
+    rawResult: '原始结果数据',
   },
   emptyState: {
     title: '开始构建你的 GIS 流水线',
