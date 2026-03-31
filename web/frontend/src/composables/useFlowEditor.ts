@@ -34,6 +34,7 @@ export function useFlowEditor() {
           } else if (event === 'done') {
             store.executionStatus = 'done'
             store.executionLog.push(t('pipeline.executionDone'))
+            store.executionResult = data.report ?? data
             isExecuting.value = false
           } else if (event === 'error') {
             store.executionStatus = 'error'

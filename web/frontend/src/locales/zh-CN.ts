@@ -313,7 +313,7 @@ export default {
     createdAt: '创建时间',
     actions: '操作',
     refreshList: '刷新',
-    managerDesc: '管理和监控后台运行的 Pipeline 任务，实时查看执行进度和结果。',
+    managerDesc: '管理和监控后台运行的流水线任务，实时查看执行进度和结果。',
   },
   emptyState: {
     title: '开始构建你的 GIS 流水线',

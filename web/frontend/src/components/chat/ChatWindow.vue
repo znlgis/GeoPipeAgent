@@ -45,10 +45,14 @@ onMounted(() => {
 watch(
   () => props.initialPrompt,
   (prompt) => {
-    if (prompt && chatStore.currentConversation) {
+    if (prompt && prompt.trim() && chatStore.currentConversation) {
       activeMode.value = props.initialMode || 'chat'
       inputText.value = prompt
-      nextTick(() => send())
+      nextTick(() => {
+        if (inputText.value.trim()) {
+          send()
+        }
+      })
     }
   },
   { immediate: true },

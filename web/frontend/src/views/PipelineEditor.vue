@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -49,8 +49,28 @@ const saveName = ref('')
 const activeBottomTab = ref('log')
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const aiGenerating = ref(false)
-const executionGeoJson = ref<Record<string, any> | null>(null)
 const isSubmittingBackground = ref(false)
+
+// Extract GeoJSON from execution result (if it contains spatial data)
+const executionGeoJson = computed<Record<string, any> | null>(() => {
+  const result = pipelineStore.executionResult
+  if (!result) return null
+  // Check if result itself is GeoJSON
+  if (result.type === 'FeatureCollection' || result.type === 'Feature') return result
+  // Check common nested locations
+  if (result.geojson) return result.geojson
+  if (result.geodata) return result.geodata
+  if (result.output?.type === 'FeatureCollection') return result.output
+  return null
+})
+
+// Auto-switch to map tab when GeoJSON becomes available
+watch(executionGeoJson, (val) => {
+  if (val) {
+    showBottom.value = true
+    activeBottomTab.value = 'map'
+  }
+})
 
 // --- Panel collapse states ---
 const showPalette = ref(true)
@@ -131,7 +151,6 @@ function handleGlobalKeydown(event: KeyboardEvent) {
 }
 
 async function handleRun() {
-  executionGeoJson.value = null
   await executePipeline()
   showBottom.value = true
   activeBottomTab.value = 'log'
