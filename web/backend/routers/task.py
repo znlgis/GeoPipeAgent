@@ -83,6 +83,72 @@ async def _run_pipeline_task(task_id: str, yaml_content: str) -> None:
         )
 
 
+# ── Geodata extraction helpers ────────────────────────────────────────────────
+
+
+def _looks_like_wkt(text: str) -> bool:
+    """Check if a string looks like a WKT geometry."""
+    text = text.strip().upper()
+    wkt_prefixes = (
+        "POINT", "LINESTRING", "POLYGON", "MULTIPOINT",
+        "MULTILINESTRING", "MULTIPOLYGON", "GEOMETRYCOLLECTION",
+    )
+    return any(text.startswith(prefix) for prefix in wkt_prefixes)
+
+
+def _extract_geodata(result: dict[str, Any]) -> dict[str, Any] | None:
+    """Extract spatial data from a pipeline execution result.
+
+    Searches common locations in the result structure for GeoJSON data.
+    Returns a dict with 'type' ('geojson' or 'wkt'), 'data', and optional 'layers'.
+    """
+    layers: list[dict[str, Any]] = []
+
+    # Direct GeoJSON result
+    if isinstance(result, dict):
+        if result.get("type") in ("FeatureCollection", "Feature", "Point", "LineString",
+                                   "Polygon", "MultiPoint", "MultiLineString", "MultiPolygon",
+                                   "GeometryCollection"):
+            layers.append({"name": "result", "type": "geojson", "data": result})
+
+        # Check nested locations
+        for key in ("geojson", "geodata", "output", "geometry", "features"):
+            nested = result.get(key)
+            if isinstance(nested, dict) and nested.get("type") in (
+                "FeatureCollection", "Feature", "Point", "LineString",
+                "Polygon", "MultiPoint", "MultiLineString", "MultiPolygon",
+                "GeometryCollection",
+            ):
+                layers.append({"name": key, "type": "geojson", "data": nested})
+
+        # Check step results for spatial data
+        steps = result.get("steps", [])
+        if isinstance(steps, list):
+            for step in steps:
+                if not isinstance(step, dict):
+                    continue
+                step_output = step.get("output") or step.get("result")
+                if isinstance(step_output, dict) and step_output.get("type") in (
+                    "FeatureCollection", "Feature",
+                ):
+                    step_name = step.get("id", step.get("name", "step"))
+                    layers.append({"name": step_name, "type": "geojson", "data": step_output})
+
+                # Check for WKT strings in outputs
+                for k, v in step.items():
+                    if isinstance(v, str) and _looks_like_wkt(v):
+                        step_name = step.get("id", step.get("name", "step"))
+                        layers.append({"name": f"{step_name}_{k}", "type": "wkt", "data": v})
+
+    if not layers:
+        return None
+
+    return {
+        "layers": layers,
+        "layer_count": len(layers),
+    }
+
+
 # ── Task status & management ─────────────────────────────────────────────────
 
 
@@ -99,6 +165,31 @@ async def get_task(task_id: str):
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
+
+
+@router.get("/{task_id}/geodata")
+async def get_task_geodata(task_id: str):
+    """Extract GeoJSON/WKT spatial data from a completed task's result.
+
+    Searches the task result for spatial data in common locations and returns
+    it in a format suitable for map visualization.
+    """
+    task = task_queue.get_task(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if task.get("status") != "completed":
+        raise HTTPException(status_code=400, detail="Task is not completed yet")
+
+    result = task.get("result")
+    if result is None:
+        raise HTTPException(status_code=404, detail="No result data available")
+
+    geodata = _extract_geodata(result)
+    if geodata is None:
+        raise HTTPException(status_code=404, detail="No spatial data found in task result")
+
+    return geodata
 
 
 @router.get("/{task_id}/stream")
