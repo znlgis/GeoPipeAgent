@@ -289,6 +289,8 @@ export default {
     bbox: 'Bbox',
     noData: 'No spatial data to preview',
     fallbackHint: 'Map library failed to load. Showing raw JSON data.',
+    layers: 'Layers',
+    layerControl: 'Layer Control',
   },
   task: {
     title: 'Background Tasks',

@@ -289,6 +289,8 @@ export default {
     bbox: '范围',
     noData: '暂无空间数据可预览',
     fallbackHint: '地图库加载失败，以 JSON 格式显示原始数据。',
+    layers: '图层',
+    layerControl: '图层控制',
   },
   task: {
     title: '后台任务',
