@@ -172,6 +172,28 @@ async def generate_pipeline(
         yield chunk
 
 
+async def generate_pipeline_with_context(
+    history: list[dict[str, str]],
+    config: dict[str, Any],
+    skill_enabled: bool = True,
+    skill_modules: list[str] | None = None,
+) -> AsyncGenerator[str, None]:
+    """Stream pipeline generation with full conversation context.
+
+    This enables multi-turn pipeline refinement — the user can say
+    "extract rivers", then "only keep rivers longer than 10 km", and
+    the LLM will chain both instructions into one YAML pipeline.
+    """
+    async for chunk in stream_chat(
+        history,
+        config,
+        mode="generate",
+        skill_enabled=skill_enabled,
+        skill_modules=skill_modules,
+    ):
+        yield chunk
+
+
 async def analyze_result(
     report: dict[str, Any],
     config: dict[str, Any],

@@ -51,6 +51,11 @@ const router = createRouter({
       component: () => import('./views/LlmChat.vue'),
     },
     {
+      path: '/templates',
+      name: 'TemplateGallery',
+      component: () => import('./views/TemplateGallery.vue'),
+    },
+    {
       path: '/skill',
       name: 'SkillManager',
       component: () => import('./views/SkillManager.vue'),

@@ -134,6 +134,24 @@ def delete_conversation(conversation_id: str) -> bool:
     return False
 
 
+def update_conversation(conversation_id: str, **fields: Any) -> dict[str, Any] | None:
+    """Update top-level fields of a conversation (e.g. title).
+
+    Returns the updated conversation or *None* if not found.
+    """
+    lock = _get_lock(conversation_id)
+    with lock:
+        conversation = get_conversation(conversation_id)
+        if conversation is None:
+            return None
+        for key, value in fields.items():
+            if key in ("title", "config"):
+                conversation[key] = value
+        conversation["updated_at"] = _now_iso()
+        _save(conversation)
+        return conversation
+
+
 # ── Export helpers ────────────────────────────────────────────────────────────
 
 

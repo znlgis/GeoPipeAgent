@@ -104,7 +104,12 @@ async def chat(req: LlmChatRequest):
 
 @router.post("/generate-pipeline")
 async def generate_pipeline(req: LlmGenerateRequest):
-    """Generate a YAML pipeline from a natural-language description."""
+    """Generate a YAML pipeline from a natural-language description.
+
+    When a conversation_id is provided, the full conversation history is
+    included so the LLM can refine a pipeline across multiple turns
+    (e.g. user says "extract rivers", then "only keep > 10 km").
+    """
     config = get_llm_config()
     conv_id, _ = _ensure_conversation(
         req.conversation_id, title=f"Generate: {req.description[:50]}",
@@ -112,8 +117,15 @@ async def generate_pipeline(req: LlmGenerateRequest):
 
     conversation_store.add_message(conv_id, "user", req.description)
 
-    stream = llm_service.generate_pipeline(
-        req.description,
+    # Include conversation history for multi-turn pipeline refinement
+    conversation = conversation_store.get_conversation(conv_id)
+    history = [
+        {"role": m["role"], "content": m["content"]}
+        for m in (conversation or {}).get("messages", [])
+    ]
+
+    stream = llm_service.generate_pipeline_with_context(
+        history,
         config,
         skill_enabled=req.skill_enabled,
         skill_modules=req.skill_modules,
@@ -171,6 +183,20 @@ async def delete_conversation(conversation_id: str):
     if not deleted:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return {"message": "Conversation deleted"}
+
+
+@router.patch("/conversations/{conversation_id}")
+async def update_conversation(conversation_id: str, body: dict):
+    """Update conversation metadata (e.g., rename)."""
+    title = body.get("title")
+    if title is None:
+        raise HTTPException(status_code=400, detail="No updatable fields provided")
+
+    updated = conversation_store.update_conversation(conversation_id, title=title)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    return {"message": "Conversation updated", "id": conversation_id}
 
 
 # ── LLM configuration ────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
-from .routers import pipeline, llm, export, skill
+from .routers import pipeline, llm, export, skill, template, task
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,8 @@ app.include_router(pipeline.router)
 app.include_router(llm.router)
 app.include_router(export.router)
 app.include_router(skill.router)
+app.include_router(template.router)
+app.include_router(task.router)
 
 
 @app.get("/api/health")
