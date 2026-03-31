@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any, TYPE_CHECKING
 
@@ -61,10 +62,8 @@ class StepResult:
 
         if self.issues:
             summary["issues_count"] = len(self.issues)
-            by_severity: dict[str, int] = {}
-            for issue in self.issues:
-                sev = getattr(issue, "severity", "unknown")
-                by_severity[sev] = by_severity.get(sev, 0) + 1
-            summary["issues_by_severity"] = by_severity
+            summary["issues_by_severity"] = dict(
+                Counter(getattr(i, "severity", "unknown") for i in self.issues)
+            )
 
         return summary

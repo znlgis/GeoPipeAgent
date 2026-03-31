@@ -45,6 +45,8 @@ def analysis_heatmap(ctx: StepContext) -> StepResult:
     from scipy.ndimage import gaussian_filter
     from rasterio.transform import from_bounds
 
+    from geopipe_agent.steps.analysis._grid import normalize_bounds, compute_grid_dims
+
     gdf = ctx.input("input")
     resolution = ctx.param("resolution", 100)
     bandwidth = ctx.param("bandwidth")
@@ -52,23 +54,10 @@ def analysis_heatmap(ctx: StepContext) -> StepResult:
     # Extract point coordinates
     coords = np.array([(g.x, g.y) for g in gdf.geometry])
 
-    minx, miny, maxx, maxy = gdf.total_bounds
-    dx = maxx - minx
-    dy = maxy - miny
-
-    # Avoid zero-size extent
-    if dx == 0:
-        dx = 1.0
-        minx -= 0.5
-        maxx += 0.5
-    if dy == 0:
-        dy = 1.0
-        miny -= 0.5
-        maxy += 0.5
+    minx, miny, maxx, maxy, dx, dy = normalize_bounds(gdf.total_bounds)
 
     # Compute grid dimensions
-    width = resolution
-    height = max(1, int(resolution * dy / dx))
+    width, height = compute_grid_dims(resolution, dx, dy)
 
     # Build 2D histogram
     heatmap, _, _ = np.histogram2d(

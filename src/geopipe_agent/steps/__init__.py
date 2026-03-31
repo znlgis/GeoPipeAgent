@@ -18,7 +18,7 @@ from geopipe_agent.steps.registry import (
     reset,
 )
 
-_SKIP_MODULES = {"registry", "_helpers"}
+_SKIP_MODULES = {"registry"}
 
 
 def _iter_step_modules():
@@ -28,12 +28,16 @@ def _iter_step_modules():
     for _importer, modname, ispkg in pkgutil.walk_packages(
         [package_dir], prefix=prefix
     ):
+        # Skip sub-package __init__ files (they're empty)
+        if ispkg:
+            continue
         short = modname[len(prefix):]
         # Skip non-step helper modules at the top level
         if short in _SKIP_MODULES:
             continue
-        # Skip sub-package __init__ files (they're empty)
-        if ispkg:
+        # Skip private/helper modules (e.g. _helpers, _graph, _grid, _delegate)
+        leaf = short.rsplit(".", 1)[-1]
+        if leaf.startswith("_"):
             continue
         yield modname
 

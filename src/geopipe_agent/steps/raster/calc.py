@@ -73,8 +73,7 @@ def raster_calc(ctx: StepContext) -> StepResult:
     validate_calc_ast(tree, available)
 
     # Safe evaluation with numpy functions
-    safe_ns = {"__builtins__": {}, "np": np}
-    safe_ns.update(band_vars)
+    safe_ns = {"__builtins__": {}, "np": np, **band_vars}
 
     with np.errstate(divide="ignore", invalid="ignore"):
         result_data = eval(  # noqa: S307

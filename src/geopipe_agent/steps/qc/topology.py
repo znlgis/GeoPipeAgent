@@ -55,8 +55,6 @@ from geopipe_agent.steps.qc._helpers import make_vector_qc_result
     ],
 )
 def qc_topology(ctx: StepContext) -> StepResult:
-    from shapely.ops import unary_union
-
     gdf = ctx.input("input")
     rules: list[str] = ctx.param("rules")
     tolerance = ctx.param("tolerance", 0.0)
