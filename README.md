@@ -341,17 +341,18 @@ geopipe-agent generate-skill-doc
 from geopipe_agent import step, StepContext, StepResult
 
 @step(
-    name="my_custom_step",
+    id="vector.my_custom_step",
+    name="自定义矢量步骤",
     category="vector",
     description="自定义矢量处理步骤",
     params={
-        "input": {"type": "GeoDataFrame", "required": True, "desc": "输入数据"},
-        "param1": {"type": "float", "required": False, "default": 1.0, "desc": "参数1"},
+        "input": {"type": "geodataframe", "required": True, "description": "输入数据"},
+        "param1": {"type": "float", "required": False, "default": 1.0, "description": "参数1"},
     },
-    outputs={"output": "GeoDataFrame"},
+    outputs={"output": {"type": "geodataframe", "description": "处理结果"}},
 )
 def my_custom_step(ctx: StepContext) -> StepResult:
-    gdf = ctx.param("input")
+    gdf = ctx.input("input")
     param1 = ctx.param("param1", default=1.0)
     # 处理逻辑...
     return StepResult(output=gdf, stats={"feature_count": len(gdf)})
@@ -795,17 +796,18 @@ Register new steps using the `@step` decorator:
 from geopipe_agent import step, StepContext, StepResult
 
 @step(
-    name="my_custom_step",
+    id="vector.my_custom_step",
+    name="My Custom Step",
     category="vector",
     description="Custom vector processing step",
     params={
-        "input": {"type": "GeoDataFrame", "required": True, "desc": "Input data"},
-        "param1": {"type": "float", "required": False, "default": 1.0, "desc": "Parameter 1"},
+        "input": {"type": "geodataframe", "required": True, "description": "Input data"},
+        "param1": {"type": "float", "required": False, "default": 1.0, "description": "Parameter 1"},
     },
-    outputs={"output": "GeoDataFrame"},
+    outputs={"output": {"type": "geodataframe", "description": "Processed result"}},
 )
 def my_custom_step(ctx: StepContext) -> StepResult:
-    gdf = ctx.param("input")
+    gdf = ctx.input("input")
     param1 = ctx.param("param1", default=1.0)
     # Processing logic...
     return StepResult(output=gdf, stats={"feature_count": len(gdf)})
