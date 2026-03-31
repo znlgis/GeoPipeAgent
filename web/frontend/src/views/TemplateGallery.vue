@@ -210,6 +210,7 @@ async function viewDetail(tpl: TemplateInfo) {
             size="small"
             text
             class="fav-btn"
+            :aria-label="isFavorite(tpl.id) ? t('template.unfavorite') : t('template.favorite')"
             @click.stop="toggleFavorite(tpl.id)"
           >
             {{ isFavorite(tpl.id) ? '⭐' : '☆' }}
