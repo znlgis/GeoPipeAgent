@@ -56,6 +56,7 @@ export function createSSEConnection(
   url: string,
   body: any,
   options: SSEOptions,
+  method: 'POST' | 'GET' = 'POST',
 ): AbortController {
   const controller = new AbortController()
   const maxRetries = options.maxRetries ?? 3
@@ -63,12 +64,16 @@ export function createSSEConnection(
 
   async function connect() {
     try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+      const fetchOptions: RequestInit = {
+        method,
         signal: controller.signal,
-      })
+      }
+      if (method === 'POST') {
+        fetchOptions.headers = { 'Content-Type': 'application/json' }
+        fetchOptions.body = JSON.stringify(body)
+      }
+
+      const response = await fetch(url, fetchOptions)
 
       if (!response.ok) {
         const errorData = await response

@@ -66,6 +66,7 @@ function toggleLocale() {
           <el-menu-item index="/templates">{{ t('nav.templates') }}</el-menu-item>
           <el-menu-item index="/skill">{{ t('nav.skillManager') }}</el-menu-item>
           <el-menu-item index="/history">{{ t('nav.history') }}</el-menu-item>
+          <el-menu-item index="/tasks">{{ t('nav.tasks') }}</el-menu-item>
         </el-menu>
         <div class="header-actions">
           <el-tooltip :content="isDark ? 'Light Mode' : 'Dark Mode'" placement="bottom">
