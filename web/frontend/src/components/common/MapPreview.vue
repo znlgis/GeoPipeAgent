@@ -21,7 +21,7 @@ const { t } = useI18n()
 export interface MapLayer {
   name: string
   type: 'geojson' | 'wkt'
-  data: any
+  data: Record<string, any> | string
   visible?: boolean
   color?: string
 }
@@ -180,7 +180,8 @@ function parseWktToFeatures(wktString: string, ol: any): any[] {
       featureProjection: 'EPSG:3857',
     })
     return feature ? [feature] : []
-  } catch {
+  } catch (err) {
+    console.warn('Failed to parse WKT:', err)
     return []
   }
 }
