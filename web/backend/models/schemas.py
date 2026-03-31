@@ -199,3 +199,52 @@ class ExportRequest(BaseModel):
 
     conversation_ids: list[str] = Field(description="IDs of conversations to export")
     format: str = Field(default="json", description="Export format (json or markdown)")
+
+
+# ── Template schemas ─────────────────────────────────────────────────────────
+
+class TemplateInfo(BaseModel):
+    """Summary of a pipeline template."""
+
+    id: str = Field(description="Template identifier")
+    name: str = Field(description="Display name")
+    name_en: str = Field(default="", description="English name")
+    name_zh: str = Field(default="", description="Chinese name")
+    description_en: str = Field(default="", description="English description")
+    description_zh: str = Field(default="", description="Chinese description")
+    category: str = Field(default="", description="Template category")
+    tags: list[str] = Field(default_factory=list, description="Tags")
+    difficulty: str = Field(default="beginner", description="Difficulty level")
+    available: bool = Field(default=True, description="Whether YAML file exists")
+
+
+class TemplateDetail(TemplateInfo):
+    """Full template with YAML content."""
+
+    yaml_content: str = Field(description="Template YAML pipeline")
+    prompt_en: str = Field(default="", description="English prompt for this template")
+    prompt_zh: str = Field(default="", description="Chinese prompt for this template")
+
+
+# ── Task schemas ─────────────────────────────────────────────────────────────
+
+class TaskSubmitResponse(BaseModel):
+    """Response after submitting a background task."""
+
+    task_id: str = Field(description="Unique task identifier")
+    status: str = Field(description="Initial task status")
+    message: str = Field(default="", description="Status message")
+
+
+class TaskStatus(BaseModel):
+    """Current status of a background task."""
+
+    id: str = Field(description="Task identifier")
+    type: str = Field(description="Task type")
+    status: str = Field(description="Status: pending, running, completed, failed")
+    progress: int = Field(default=0, description="Progress percentage 0-100")
+    message: str = Field(default="", description="Current status message")
+    created_at: str = Field(description="ISO-8601 creation timestamp")
+    updated_at: str = Field(description="ISO-8601 last-update timestamp")
+    result: Optional[dict[str, Any]] = Field(default=None, description="Task result on completion")
+    error: Optional[str] = Field(default=None, description="Error message on failure")

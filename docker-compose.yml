@@ -1,0 +1,70 @@
+# ── GeoPipeAgent Docker Compose ──────────────────────────────────────────────
+# One-command deployment: docker compose up -d
+# Services: frontend (Nginx), backend (FastAPI), redis (task queue)
+# ---------------------------------------------------------------------------
+
+services:
+  # ── Frontend (Vue + Nginx) ────────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: web/frontend/Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ── Backend (FastAPI + GDAL) ──────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: web/backend/Dockerfile
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      - LLM_API_KEY=${LLM_API_KEY:-}
+      - LLM_BASE_URL=${LLM_BASE_URL:-https://api.deepseek.com/v1}
+      - LLM_MODEL=${LLM_MODEL:-deepseek-reasoner}
+      - REDIS_URL=redis://redis:6379/0
+      - GEOPIPE_CORS_ORIGINS=http://localhost:${FRONTEND_PORT:-3000},http://frontend
+    volumes:
+      - geopipe-data:/app/data
+      - ./cookbook:/app/cookbook:ro
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  # ── Redis (task queue backend) ────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # ── Task Worker (RQ background jobs) ──────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: web/backend/Dockerfile
+    command: python -m rq.cli worker --url redis://redis:6379/0 geopipe-tasks
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - geopipe-data:/app/data
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+volumes:
+  geopipe-data:
+    driver: local
+  redis-data:
+    driver: local
