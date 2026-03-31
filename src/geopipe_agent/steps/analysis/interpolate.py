@@ -63,6 +63,8 @@ def analysis_interpolate(ctx: StepContext) -> StepResult:
     from scipy.interpolate import griddata
     from rasterio.transform import from_bounds
 
+    from geopipe_agent.steps.analysis._grid import normalize_bounds, compute_grid_dims
+
     gdf = ctx.input("input")
     value_field = ctx.param("value_field")
     method = ctx.param("method", "linear")
@@ -77,20 +79,9 @@ def analysis_interpolate(ctx: StepContext) -> StepResult:
     coords = np.array([(g.x, g.y) for g in gdf.geometry])
     values = gdf[value_field].values.astype(np.float64)
 
-    minx, miny, maxx, maxy = gdf.total_bounds
-    dx = maxx - minx
-    dy = maxy - miny
-    if dx == 0:
-        dx = 1.0
-        minx -= 0.5
-        maxx += 0.5
-    if dy == 0:
-        dy = 1.0
-        miny -= 0.5
-        maxy += 0.5
+    minx, miny, maxx, maxy, dx, dy = normalize_bounds(gdf.total_bounds)
 
-    width = resolution
-    height = max(1, int(resolution * dy / dx))
+    width, height = compute_grid_dims(resolution, dx, dy)
 
     xi = np.linspace(minx, maxx, width)
     yi = np.linspace(maxy, miny, height)  # Top to bottom for raster
@@ -145,22 +136,36 @@ def _idw(
     grid_y: "np.ndarray",
     power: float,
 ) -> "np.ndarray":
-    """Inverse Distance Weighting interpolation."""
+    """Inverse Distance Weighting interpolation (vectorized)."""
     import numpy as np
 
     flat_x = grid_x.ravel()
     flat_y = grid_y.ravel()
-    result = np.zeros(flat_x.shape)
 
-    for i in range(len(flat_x)):
-        dist = np.sqrt((points[:, 0] - flat_x[i]) ** 2 + (points[:, 1] - flat_y[i]) ** 2)
-        # Avoid division by zero
-        mask = dist > 0
-        if not mask.all():
-            # Point coincides with a data point
-            result[i] = values[~mask][0]
-        else:
-            weights = 1.0 / dist[mask] ** power
-            result[i] = np.sum(weights * values[mask]) / np.sum(weights)
+    # Distance matrix: (n_grid_points, n_data_points)
+    dx = flat_x[:, np.newaxis] - points[:, 0]
+    dy = flat_y[:, np.newaxis] - points[:, 1]
+    dist = np.sqrt(dx ** 2 + dy ** 2)
+
+    # Handle coincident points: where distance is zero, use the data value directly
+    coincident = dist == 0
+    has_coincident = coincident.any(axis=1)
+
+    # Compute IDW weights for non-coincident grid points
+    with np.errstate(divide="ignore", invalid="ignore"):
+        weights = 1.0 / dist ** power
+    weights[coincident] = 0  # zero out coincident to avoid inf
+
+    w_sum = weights.sum(axis=1)
+    result = np.where(
+        w_sum > 0,
+        (weights * values).sum(axis=1) / w_sum,
+        0.0,
+    )
+
+    # For grid points coinciding with a data point, use the data value
+    if has_coincident.any():
+        first_match = coincident[has_coincident].argmax(axis=1)
+        result[has_coincident] = values[first_match]
 
     return result.reshape(grid_x.shape)

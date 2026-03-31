@@ -51,7 +51,9 @@ from geopipe_agent.models.result import StepResult
 def network_shortest_path(ctx: StepContext) -> StepResult:
     import networkx as nx
     import geopandas as gpd
-    from shapely.geometry import LineString, Point
+    from shapely.geometry import LineString
+
+    from geopipe_agent.steps.network._graph import build_network_graph, find_nearest_node
 
     gdf = ctx.input("input")
     origin = ctx.param("origin")
@@ -59,35 +61,11 @@ def network_shortest_path(ctx: StepContext) -> StepResult:
     weight_field = ctx.param("weight")
 
     # Build graph from line geometries
-    G = nx.Graph()
-
-    for idx, row in gdf.iterrows():
-        geom = row.geometry
-        if geom is None or geom.is_empty:
-            continue
-        coords = list(geom.coords)
-        if len(coords) < 2:
-            continue
-        for i in range(len(coords) - 1):
-            u = coords[i]
-            v = coords[i + 1]
-            seg = LineString([u, v])
-            edge_weight = seg.length
-            if weight_field and weight_field in gdf.columns:
-                edge_weight = row[weight_field] / max(1, len(coords) - 1)
-            G.add_edge(u, v, weight=edge_weight, geometry=seg)
-
-    if len(G.nodes) == 0:
-        raise ValueError("Cannot build network graph: no valid line geometries found.")
+    G = build_network_graph(gdf, weight_field)
 
     # Find nearest nodes to origin and destination
-    nodes = list(G.nodes)
-
-    origin_pt = Point(origin)
-    dest_pt = Point(destination)
-
-    origin_node = min(nodes, key=lambda n: Point(n).distance(origin_pt))
-    dest_node = min(nodes, key=lambda n: Point(n).distance(dest_pt))
+    origin_node = find_nearest_node(G, tuple(origin))
+    dest_node = find_nearest_node(G, tuple(destination))
 
     try:
         path = nx.shortest_path(G, source=origin_node, target=dest_node, weight="weight")
@@ -98,8 +76,7 @@ def network_shortest_path(ctx: StepContext) -> StepResult:
         )
 
     # Build path geometry
-    path_coords = list(path)
-    path_line = LineString(path_coords)
+    path_line = LineString(list(path))
     total_cost = nx.shortest_path_length(G, source=origin_node, target=dest_node, weight="weight")
 
     result_gdf = gpd.GeoDataFrame(

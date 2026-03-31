@@ -103,10 +103,7 @@ class PipelineContext:
 
     def resolve_params(self, params: dict) -> dict:
         """Resolve all values in a params dict."""
-        resolved = {}
-        for key, value in params.items():
-            resolved[key] = self._resolve_value(value)
-        return resolved
+        return {key: self._resolve_value(value) for key, value in params.items()}
 
     def _resolve_value(self, value: Any) -> Any:
         """Recursively resolve a single value (dict, list, or scalar)."""

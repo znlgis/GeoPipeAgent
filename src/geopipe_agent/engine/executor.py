@@ -6,15 +6,16 @@ import ast
 import logging
 import re
 import time
-from typing import Any
+from typing import Any, Callable
 
 from geopipe_agent.backends import BackendManager
 from geopipe_agent.engine.context import PipelineContext, StepContext
 from geopipe_agent.engine.reporter import build_report
 from geopipe_agent.errors import StepExecutionError
-from geopipe_agent.models.pipeline import PipelineDefinition
+from geopipe_agent.models.pipeline import PipelineDefinition, StepDefinition
 from geopipe_agent.models.result import StepResult
 from geopipe_agent.steps import registry
+from geopipe_agent.steps.registry import StepInfo
 from geopipe_agent.utils.safe_eval import validate_condition_ast
 
 logger = logging.getLogger("geopipe_agent")
@@ -108,7 +109,11 @@ def execute_pipeline(pipeline: PipelineDefinition) -> dict:
     )
 
 
-def _execute_step(step_def, context, backend_manager):
+def _execute_step(
+    step_def: StepDefinition,
+    context: PipelineContext,
+    backend_manager: BackendManager,
+) -> StepResult:
     """Execute a single step, with retry if on_error='retry'."""
     max_attempts = _MAX_RETRIES if step_def.on_error == "retry" else 1
 
@@ -138,7 +143,7 @@ def _execute_step(step_def, context, backend_manager):
     return _with_retry(_run, max_attempts, step_def.id)
 
 
-def _with_retry(fn, max_attempts: int, step_id: str):
+def _with_retry(fn: Callable[[], StepResult], max_attempts: int, step_id: str) -> StepResult:
     """Call fn(), retrying on failure up to max_attempts times."""
     last_error = None
     for attempt in range(1, max_attempts + 1):
@@ -157,7 +162,7 @@ def _with_retry(fn, max_attempts: int, step_id: str):
     raise last_error
 
 
-def _validate_step_params(step_id, resolved_params, step_info):
+def _validate_step_params(step_id: str, resolved_params: dict, step_info: StepInfo) -> None:
     """Validate required params are present and coerce types where possible."""
     if not step_info.params:
         return

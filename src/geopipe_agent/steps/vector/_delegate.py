@@ -29,10 +29,7 @@ def run_backend_op(
     """
     gdf = ctx.input("input")
 
-    args = []
-    if positional_params:
-        for p in positional_params:
-            args.append(ctx.param(p))
+    args = [ctx.param(p) for p in positional_params] if positional_params else []
 
     kwargs = {}
     if keyword_params:

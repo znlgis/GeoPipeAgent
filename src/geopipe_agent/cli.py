@@ -188,10 +188,10 @@ def backends():
     """List available GIS backends and their status."""
     from geopipe_agent.backends import _BACKEND_CLASSES
 
-    result = [
-        {"name": cls().name(), "available": cls().is_available()}
-        for cls in _BACKEND_CLASSES
-    ]
+    result = []
+    for cls in _BACKEND_CLASSES:
+        instance = cls()
+        result.append({"name": instance.name(), "available": instance.is_available()})
     click.echo(json.dumps(result, indent=2))
 
 

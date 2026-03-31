@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any
 
 
@@ -50,17 +51,12 @@ def _build_qc_summary(step_reports: list[dict]) -> dict[str, Any] | None:
     if not all_issues:
         return None
 
-    by_severity: dict[str, int] = {}
-    by_rule: dict[str, int] = {}
-    for issue in all_issues:
-        sev = issue.get("severity", "unknown")
-        by_severity[sev] = by_severity.get(sev, 0) + 1
-        rule = issue.get("rule_id", "unknown")
-        by_rule[rule] = by_rule.get(rule, 0) + 1
+    by_severity = Counter(issue.get("severity", "unknown") for issue in all_issues)
+    by_rule = Counter(issue.get("rule_id", "unknown") for issue in all_issues)
 
     return {
         "total_issues": len(all_issues),
-        "by_severity": by_severity,
-        "by_rule": by_rule,
+        "by_severity": dict(by_severity),
+        "by_rule": dict(by_rule),
         "issues": all_issues,
     }
