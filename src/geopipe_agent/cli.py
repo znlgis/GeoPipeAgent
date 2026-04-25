@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 import sys
+import traceback
 
 import click
 
 import geopipe_agent  # noqa: F401 — triggers auto-loading of built-in steps
+from geopipe_agent.errors import StepExecutionError
 from geopipe_agent.utils.logging import setup_logging
 
 
@@ -52,13 +54,16 @@ def run(file: str, log_level: str, json_log: bool, var: tuple[str, ...]):
         click.echo(json.dumps(report, indent=2, ensure_ascii=False, default=str))
     except GeopipeAgentError as e:
         error_output = {"error": type(e).__name__, "message": str(e)}
-        if hasattr(e, "to_dict"):
+        if isinstance(e, StepExecutionError):
             error_output = e.to_dict()
         click.echo(json.dumps(error_output, indent=2, ensure_ascii=False), err=True)
         sys.exit(1)
-    except Exception as e:
+    except Exception:
         click.echo(
-            json.dumps({"error": "UnexpectedError", "message": str(e)}, indent=2),
+            json.dumps({
+                "error": "UnexpectedError",
+                "message": traceback.format_exc(),
+            }, indent=2),
             err=True,
         )
         sys.exit(1)
@@ -90,6 +95,16 @@ def validate(file: str, log_level: str):
     except GeopipeAgentError as e:
         error_output = {"status": "invalid", "error": type(e).__name__, "message": str(e)}
         click.echo(json.dumps(error_output, indent=2, ensure_ascii=False), err=True)
+        sys.exit(1)
+    except Exception:
+        click.echo(
+            json.dumps({
+                "status": "invalid",
+                "error": "UnexpectedError",
+                "message": traceback.format_exc(),
+            }, indent=2),
+            err=True,
+        )
         sys.exit(1)
 
 

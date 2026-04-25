@@ -81,9 +81,10 @@ def _check_no_overlaps(gdf, tolerance: float, severity: str) -> list[QcIssue]:
     issues: list[QcIssue] = []
     sindex = gdf.sindex
     checked: set[tuple[int, int]] = set()
+    # 预提取几何体序列，避免循环内 iloc 查找
+    geoms = gdf.geometry.values
 
-    for i, row_i in gdf.iterrows():
-        geom_i = row_i.geometry
+    for i, geom_i in enumerate(geoms):
         if geom_i is None or geom_i.is_empty:
             continue
         if not isinstance(geom_i, (Polygon, MultiPolygon)):
@@ -98,7 +99,7 @@ def _check_no_overlaps(gdf, tolerance: float, severity: str) -> list[QcIssue]:
                 continue
             checked.add(pair)
 
-            geom_j = gdf.geometry.iloc[j]
+            geom_j = geoms[j]
             if geom_j is None or geom_j.is_empty:
                 continue
 

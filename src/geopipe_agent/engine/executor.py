@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import ast
 import logging
-import re
 import time
 from typing import Any, Callable
 
@@ -201,30 +200,36 @@ def _validate_step_params(step_id: str, resolved_params: dict, step_info: StepIn
 
 
 def _evaluate_condition(condition: str, context: PipelineContext) -> bool:
-    """Evaluate a ``when`` condition expression safely."""
-    resolved = condition
+    """Evaluate a ``when`` condition expression safely.
 
-    # Replace ${var} placeholders
-    def _replace_var(m: re.Match) -> str:
-        val = context.variables.get(m.group(1), "")
-        return repr(val)
-
-    resolved = re.sub(r"\$\{(\w+)\}", _replace_var, resolved)
-
-    # Replace $step_id.attr and bare $step_id references
-    def _replace_ref(m: re.Match) -> str:
+    Resolves all ``${var}`` and ``$step_id.attr`` references in a single
+    regex pass, then validates and evaluates the resulting expression.
+    """
+    def _resolve_match(m: re.Match) -> str:
+        # ``${var_name}`` → variable value
+        if m.group(0).startswith("${"):
+            val = context.variables.get(m.group(1), "")
+            return repr(val)
+        # ``$step_id`` or ``$step_id.attr`` → step output value
         try:
             return repr(context.resolve(m.group(0)))
         except Exception:
             return repr(None)
 
-    resolved = re.sub(r"\$(\w[\w-]*)(?:\.(\w+))?", _replace_ref, resolved)
+    resolved = re.sub(
+        r"\$\{(\w+)\}|\$(\w[\w-]*(?:\.\w+)?)",
+        _resolve_match,
+        condition,
+    )
 
     # AST validation
     try:
         tree = ast.parse(resolved, mode="eval")
     except SyntaxError:
-        logger.warning("Cannot parse when='%s' (resolved='%s'), treating as False", condition, resolved)
+        logger.warning(
+            "Cannot parse when='%s' (resolved='%s'), treating as False",
+            condition, resolved,
+        )
         return False
 
     unsafe = validate_condition_ast(tree)
@@ -235,7 +240,10 @@ def _evaluate_condition(condition: str, context: PipelineContext) -> bool:
     try:
         return bool(eval(compile(tree, "<when>", "eval"), {"__builtins__": {}}, {}))  # noqa: S307
     except Exception:
-        logger.warning("Cannot evaluate when='%s' (resolved='%s'), treating as False", condition, resolved)
+        logger.warning(
+            "Cannot evaluate when='%s' (resolved='%s'), treating as False",
+            condition, resolved,
+        )
         return False
 
 

@@ -14,6 +14,9 @@ class GeoBackend(ABC):
 
     Each backend wraps a specific GIS engine (GDAL Python, GDAL CLI, QGIS, etc.)
     and provides a uniform interface for spatial operations.
+
+    Backends that do not support a particular GIS operation inherit the default
+    ``NotImplementedError`` provided by this base class.
     """
 
     @abstractmethod
@@ -26,35 +29,37 @@ class GeoBackend(ABC):
         """Check whether this backend's dependencies are installed."""
         ...
 
-    @abstractmethod
+    # -- GIS operations with default "not supported" implementations ----------
+
     def buffer(self, gdf: Any, distance: float, **kwargs) -> Any:
         """Generate buffer polygons around geometries."""
-        ...
+        self._not_supported("buffer")
 
-    @abstractmethod
     def clip(self, input_gdf: Any, clip_gdf: Any, **kwargs) -> Any:
         """Clip input geometries by clip geometries."""
-        ...
+        self._not_supported("clip")
 
-    @abstractmethod
     def reproject(self, gdf: Any, target_crs: str, **kwargs) -> Any:
         """Reproject geometries to a different CRS."""
-        ...
+        self._not_supported("reproject")
 
-    @abstractmethod
     def dissolve(self, gdf: Any, by: str | None = None, **kwargs) -> Any:
         """Dissolve geometries, optionally grouped by a column."""
-        ...
+        self._not_supported("dissolve")
 
-    @abstractmethod
     def simplify(self, gdf: Any, tolerance: float, **kwargs) -> Any:
         """Simplify geometries."""
-        ...
+        self._not_supported("simplify")
 
-    @abstractmethod
     def overlay(self, gdf1: Any, gdf2: Any, how: str = "intersection", **kwargs) -> Any:
         """Perform overlay analysis between two GeoDataFrames."""
-        ...
+        self._not_supported("overlay")
+
+    def _not_supported(self, operation: str) -> None:
+        raise NotImplementedError(
+            f"GIS operation '{operation}' is not supported by the {self.name()} backend. "
+            "Use native_python, gdal_cli, or another GIS backend instead."
+        )
 
 
 # ---------------------------------------------------------------------------

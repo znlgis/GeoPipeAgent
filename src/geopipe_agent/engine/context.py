@@ -9,6 +9,17 @@ from geopipe_agent.models.result import StepResult
 from geopipe_agent.errors import VariableResolutionError
 
 
+def _replace_variable(m: re.Match, variables: dict) -> str:
+    """Replacement function for ``${var_name}`` in string interpolation."""
+    var_name = m.group(1)
+    if var_name not in variables:
+        raise VariableResolutionError(
+            f"Variable '${{{var_name}}}' is not defined. "
+            f"Available variables: {list(variables.keys())}"
+        )
+    return str(variables[var_name])
+
+
 class PipelineContext:
     """Holds variables, step outputs, and provides reference resolution."""
 
@@ -90,16 +101,11 @@ class PipelineContext:
             return self.variables[var_name]
 
         # Otherwise, do string interpolation
-        def _replace(m: re.Match) -> str:
-            var_name = m.group(1)
-            if var_name not in self.variables:
-                raise VariableResolutionError(
-                    f"Variable '${{{var_name}}}' is not defined. "
-                    f"Available variables: {list(self.variables.keys())}"
-                )
-            return str(self.variables[var_name])
-
-        return re.sub(r"\$\{(\w+)\}", _replace, text)
+        return re.sub(
+            r"\$\{(\w+)\}",
+            lambda m: _replace_variable(m, self.variables),
+            text,
+        )
 
     def resolve_params(self, params: dict) -> dict:
         """Resolve all values in a params dict."""

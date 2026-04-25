@@ -54,25 +54,33 @@ def qc_geometry_validity(ctx: StepContext) -> StepResult:
 
     issues: list[QcIssue] = []
 
-    for idx, row in gdf.iterrows():
-        geom = row.geometry
-        if geom is None or geom.is_empty:
-            issues.append(QcIssue(
-                rule_id="geometry_validity",
-                severity=severity,
-                feature_index=idx,
-                message=f"Feature {idx}: geometry is empty or null",
-            ))
-        elif not geom.is_valid:
-            reason = explain_validity(geom)
-            issues.append(QcIssue(
-                rule_id="geometry_validity",
-                severity=severity,
-                feature_index=idx,
-                message=f"Feature {idx}: {reason}",
-                geometry=geom,
-                details={"reason": reason},
-            ))
+    # 向量化检测：空几何 + 无效几何
+    geom_series = gdf.geometry
+    is_null = geom_series.isna()
+    is_empty = ~is_null & geom_series.is_empty
+    is_invalid = ~is_null & ~is_empty & ~geom_series.is_valid
+
+    # 空/缺失几何的问题
+    for idx in gdf.index[is_null | is_empty]:
+        issues.append(QcIssue(
+            rule_id="geometry_validity",
+            severity=severity,
+            feature_index=idx,
+            message=f"Feature {idx}: geometry is empty or null",
+        ))
+
+    # 无效几何的问题（仅对无效子集逐条获取详细原因）
+    for idx in gdf.index[is_invalid]:
+        geom = geom_series.loc[idx]
+        reason = explain_validity(geom)
+        issues.append(QcIssue(
+            rule_id="geometry_validity",
+            severity=severity,
+            feature_index=idx,
+            message=f"Feature {idx}: {reason}",
+            geometry=geom,
+            details={"reason": reason},
+        ))
 
     output_gdf = gdf
     if auto_fix and issues:

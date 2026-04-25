@@ -106,31 +106,3 @@ class GenericCliBackend(GeoBackend):
             "stderr": result.stderr,
             "returncode": result.returncode,
         }
-
-    # -- GeoBackend abstract method stubs (not applicable) --------------------
-    # These GIS operations are not supported by the generic CLI backend.
-    # They exist solely to satisfy the GeoBackend ABC.
-
-    def _not_supported(self, op: str) -> Any:
-        raise NotImplementedError(
-            f"GIS operation '{op}' is not supported by the generic_cli backend. "
-            "Use native_python, gdal_cli, or another GIS backend instead."
-        )
-
-    def buffer(self, gdf: Any, distance: float, **kw: Any) -> Any:
-        return self._not_supported("buffer")
-
-    def clip(self, input_gdf: Any, clip_gdf: Any, **kw: Any) -> Any:
-        return self._not_supported("clip")
-
-    def reproject(self, gdf: Any, target_crs: str, **kw: Any) -> Any:
-        return self._not_supported("reproject")
-
-    def dissolve(self, gdf: Any, by: str | None = None, **kw: Any) -> Any:
-        return self._not_supported("dissolve")
-
-    def simplify(self, gdf: Any, tolerance: float, **kw: Any) -> Any:
-        return self._not_supported("simplify")
-
-    def overlay(self, gdf1: Any, gdf2: Any, how: str = "intersection", **kw: Any) -> Any:
-        return self._not_supported("overlay")

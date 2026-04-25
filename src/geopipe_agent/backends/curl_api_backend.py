@@ -212,29 +212,3 @@ class CurlApiBackend(GeoBackend):
                     resp_headers[key.strip()] = value.strip()
 
         return status_code, resp_headers, body
-
-    # -- GeoBackend abstract method stubs (not applicable) --------------------
-
-    def _not_supported(self, op: str) -> Any:
-        raise NotImplementedError(
-            f"GIS operation '{op}' is not supported by the curl_api backend. "
-            "Use native_python, gdal_cli, or another GIS backend instead."
-        )
-
-    def buffer(self, gdf: Any, distance: float, **kw: Any) -> Any:
-        return self._not_supported("buffer")
-
-    def clip(self, input_gdf: Any, clip_gdf: Any, **kw: Any) -> Any:
-        return self._not_supported("clip")
-
-    def reproject(self, gdf: Any, target_crs: str, **kw: Any) -> Any:
-        return self._not_supported("reproject")
-
-    def dissolve(self, gdf: Any, by: str | None = None, **kw: Any) -> Any:
-        return self._not_supported("dissolve")
-
-    def simplify(self, gdf: Any, tolerance: float, **kw: Any) -> Any:
-        return self._not_supported("simplify")
-
-    def overlay(self, gdf1: Any, gdf2: Any, how: str = "intersection", **kw: Any) -> Any:
-        return self._not_supported("overlay")
